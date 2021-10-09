@@ -29,15 +29,18 @@ def get_all_file_path(input_dir, file_extension):
     return temp
 
 
-def wav_to_hdf5(directory_path_list, new_filepath):
-    h5_file = h5py.File(new_filepath, 'w')
+def wav_to_hdf5(directory_path_list, new_filepath_without_extension):
+    h5_file = h5py.File('{}.h5'.format(new_filepath_without_extension), 'w')
+    id_file = open('{}.txt'.format(new_filepath_without_extension), 'w')
     for directory_path in directory_path_list:
         file_list = get_all_file_path(directory_path, 'flac')
         for file in tqdm(file_list, desc=directory_path):
             waveform, sampling_rate = torchaudio.load(file)
             filename = get_pure_filename(file)
             h5_file.create_dataset(filename, data=waveform)
+            id_file.write('{}\n'.format(filename))
     h5_file.close()
+    id_file.close()
 
 
 if __name__ == '__main__':
@@ -47,8 +50,8 @@ if __name__ == '__main__':
     test_directory_path = ['../dataset/LibriSpeech/test-clean', '../dataset/LibriSpeech/test-other']
 
     # wav_to_hdf5(train_directory_path, '../dataset/train-librispeech.h5')
-    wav_to_hdf5(dev_directory_path, '../dataset/dev-librispeech.h5')
-    wav_to_hdf5(test_directory_path, '../dataset/test-librispeech.h5')
+    wav_to_hdf5(dev_directory_path, '../dataset/dev-librispeech')
+    wav_to_hdf5(test_directory_path, '../dataset/test-librispeech')
 
 
 
