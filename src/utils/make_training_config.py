@@ -5,8 +5,8 @@ configuration = {
     "dataset": {
         "train_dataset": "./dataset/test-librispeech.h5",
         "train_id_set": "./dataset/test-librispeech.txt",
-        "validation_dataset": "./dataset/val-librispeech.h5",
-        "validation_id_set": "./dataset/val-librispeech.txt",
+        "validation_dataset": "./dataset/dev-librispeech.h5",
+        "validation_id_set": "./dataset/dev-librispeech.txt",
         "num_workers": 8,
     },
     "parameter": {
@@ -22,7 +22,16 @@ configuration = {
         "amsgrad": True,
         "betas": (0.9, 0.98),
     },
-
+    "train": {
+        "epoch": 10,
+    },
+    "tensorboard": {
+        "writer_name": "runs/test_space"
+    },
+    "checkpoint": {
+        "save_directory_path": "./checkpoint",
+        "file_name": "test01",
+    },
     "use_cuda": False,
 }
 
