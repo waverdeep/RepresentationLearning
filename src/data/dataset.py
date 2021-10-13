@@ -1,6 +1,7 @@
 import torchaudio
 import torch
 import h5py
+import numpy as np
 from torch.utils.data import Dataset
 from torch.utils import data
 
@@ -30,7 +31,7 @@ class WaveformDataset(Dataset):
         # We train on sampled audio windows of length 20480
         audio_id = self.audio_id_list[index]
         audio_length = self.hdf5_file[audio_id].shape[1]
-        random_index = torch.randint(audio_length - self.audio_window + 1)
+        random_index = np.random.randint(audio_length - self.audio_window + 1)
         item = torch.tensor(self.hdf5_file[audio_id])
         return item[0, random_index:random_index + self.audio_window]
 
