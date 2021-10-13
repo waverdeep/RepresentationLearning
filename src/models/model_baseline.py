@@ -6,10 +6,10 @@ import numpy as np
 
 
 class CPC(nn.Module):
-    def __init__(self, timestep, sequence_length):
+    def __init__(self, timestep, audio_window):
         super(CPC, self).__init__()
         self.timestep = timestep
-        self.sequence_length = sequence_length
+        self.audio_window = audio_window
         # We use five convolutional layers with strides [5, 4, 2, 2, 2],
         # filter-sizes [10, 8, 4, 4, 4] and
         # 512 hidden units with ReLU activations
@@ -78,7 +78,7 @@ class CPC(nn.Module):
         batch = x.size()[0]
 
         # randomly pick time stamps
-        t_samples = torch.randint(int(self.sequence_length/160-self.timestep), size=(1, )).long()
+        t_samples = torch.randint(int(self.audio_window/160-self.timestep), size=(1, )).long()
 
         # input sequence: batch*channel*length, N*C*L, 8*1*20480
         z = self.encoder(x)

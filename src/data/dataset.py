@@ -2,12 +2,12 @@ import torchaudio
 import torch
 import h5py
 from torch.utils.data import Dataset
-
+from torch.utils import data
 
 
 class WaveformDataset(Dataset):
-    def __init__(self, hdf5_file, id_file, audio_window):
-        self.hdf5_file = h5py.File(hdf5_file)
+    def __init__(self, hdf5_file, id_file, audio_window=20480):
+        self.hdf5_file = h5py.File(hdf5_file, 'r')
         self.audio_window = audio_window
         self.audio_id_list = []
 
@@ -33,6 +33,16 @@ class WaveformDataset(Dataset):
         random_index = torch.randint(audio_length - self.audio_window + 1)
         item = torch.tensor(self.hdf5_file[audio_id])
         return item[0, random_index:random_index + self.audio_window]
+
+
+def get_dataloader(dataset, id_set, audio_window, batch_size, num_workers=8, shuffle=True, pin_memory=False):
+    temp = data.DataLoader(
+        WaveformDataset(hdf5_file=dataset, id_file=id_set, audio_window=audio_window),
+        batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory
+    )
+
+    return temp
+
 
 
 if __name__ == '__main__':
