@@ -46,8 +46,8 @@ class CPC(nn.Module):
         # The output of the GRU at every timestep is used as the context c from which we predict 12 timesteps
         # in the future using the contrastive loss.
         self.Wk = nn.ModuleList([nn.Linear(256, 512) for i in range(self.timestep)])
-        self.softmax = nn.Softmax()
-        self.lsoftmax = nn.LogSoftmax()
+        self.softmax = nn.Softmax(1)
+        self.log_softmax = nn.LogSoftmax(1)
 
         # weight initialize -> 근데 이거 왜하는지는 잘 모르겠음
         def _weights_init(m):
@@ -124,7 +124,7 @@ class CPC(nn.Module):
             # 1*correct.item()을 배치로 나눈 값을 accuracy로 대입함
             correct = torch.sum(
                 torch.eq(torch.argmax(self.softmax(total), dim=0), torch.arange(0, batch)))  # correct is a tensor
-            nce += torch.sum(torch.diag(self.lsoftmax(total)))  # nce is a tensor
+            nce += torch.sum(torch.diag(self.log_softmax(total)))  # nce is a tensor
         nce /= -1. * batch * self.timestep
         accuracy = 1. * correct.item() / batch
 
