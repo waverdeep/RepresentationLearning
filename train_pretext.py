@@ -2,7 +2,6 @@ import torch
 import argparse
 import json
 import os
-import numpy as np
 from tqdm import tqdm
 import src.data.dataset as dataset
 import src.utils.logger as logger
@@ -71,9 +70,6 @@ def main():
 
     # 학습 코드 작성
     best_accuracy = 0
-    # loss의 기본값을 무한대로 세팅
-    best_loss = np.inf
-    best_epoch = 0
 
     num_of_epoch = config['train']['epoch']
     for epoch in range(num_of_epoch):
@@ -135,8 +131,25 @@ def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
         optimizer.step()
 
         # ...학습 중 손실(running loss)을 기록하고
-        writer.add_scalar('training loss', loss, (epoch-1) * len(train_loader) + batch_idx)
-        writer.add_scalar('training accuracy', accuracy * 100, (epoch-1) * len(train_loader) + batch_idx)
+        writer.add_scalar('Loss/train', loss, (epoch-1) * len(train_loader) + batch_idx)
+        writer.add_scalar('Accuracy/train', accuracy * 100, (epoch-1) * len(train_loader) + batch_idx)
+
+        # 학습 중 각각 레이어의 weight 분포를 알아보기 위해
+        conv = 0
+        for idx, layer in enumerate(model.modules()):
+            if isinstance(layer, torch.nn.Conv1d):
+                writer.add_histogram("Conv/weights-{}".format(conv), layer.weight, global_step=(epoch-1) * len(train_loader) + batch_idx)
+                writer.add_histogram("Conv/bias-{}".format(conv), layer.bias, global_step=(epoch-1) * len(train_loader) + batch_idx)
+                conv += 1
+            if isinstance(layer, torch.nn.GRU):
+                writer.add_histogram("GRU/weight_ih_l0",
+                                     layer.weight_ih_l0, global_step=(epoch-1) * len(train_loader) + batch_idx)
+                writer.add_histogram("GRU/weight_hh_l0",
+                                     layer.weight_hh_l0, global_step=(epoch-1) * len(train_loader) + batch_idx)
+                writer.add_histogram("GRU/bias_ih_l0",
+                                     layer.bias_ih_l0, global_step=(epoch - 1) * len(train_loader) + batch_idx)
+                writer.add_histogram("GRU/bias_hh_l0",
+                                     layer.bias_hh_l0, global_step=(epoch - 1) * len(train_loader) + batch_idx)
 
 
 def validation(config, writer, epoch, model, validation_dataloader, format_logger):
@@ -161,8 +174,8 @@ def validation(config, writer, epoch, model, validation_dataloader, format_logge
                                            epoch, config['train']['epoch'], round(float(accuracy), 3), round(float(loss), 3)))
 
             # ...검증 중 손실(running loss)을 기록하고
-            writer.add_scalar('validating loss', loss, (epoch - 1) * len(validation_dataloader) + batch_idx)
-            writer.add_scalar('validating accuracy', accuracy * 100, (epoch - 1) * len(validation_dataloader) + batch_idx)
+            writer.add_scalar('Loss/validate', loss, (epoch - 1) * len(validation_dataloader) + batch_idx)
+            writer.add_scalar('Accuracy/validate', accuracy * 100, (epoch - 1) * len(validation_dataloader) + batch_idx)
 
             total_loss += len(data) * loss
             total_accuracy += len(data) * accuracy
@@ -178,8 +191,8 @@ def validation(config, writer, epoch, model, validation_dataloader, format_logge
 
 
 def save_checkpoint(config, model, optimizer, loss, epoch,format_logger):
-    file_path = os.path.join(config['checkpoint']['save_direcroy_path'],
-                             config['checkpoint']['file_name']+"-model_best.pt")
+    file_path = os.path.join(config['checkpoint']['save_directory_path'],
+                             config['checkpoint']['file_name'] + "-model_best.pt")
     torch.save({
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
