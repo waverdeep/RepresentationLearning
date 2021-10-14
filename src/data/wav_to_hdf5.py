@@ -48,10 +48,14 @@ if __name__ == '__main__':
                             '../dataset/LibriSpeech/train-clean-500']
     dev_directory_path = ['../dataset/LibriSpeech/dev-clean', '../dataset/LibriSpeech/dev-other']
     test_directory_path = ['../dataset/LibriSpeech/test-clean', '../dataset/LibriSpeech/test-other']
+    tiny_train_directory_path = ['../dataset/LibriSpeech/tiny-train']
+    tiny_dev_directory_path = ['../dataset/LibriSpeech/tiny-dev']
 
-    wav_to_hdf5(train_directory_path, '../dataset/train-librispeech')
-    wav_to_hdf5(dev_directory_path, '../dataset/dev-librispeech')
-    wav_to_hdf5(test_directory_path, '../dataset/test-librispeech')
+    # wav_to_hdf5(train_directory_path, '../dataset/train-librispeech')
+    # wav_to_hdf5(dev_directory_path, '../dataset/dev-librispeech')
+    # wav_to_hdf5(test_directory_path, '../dataset/test-librispeech')
+    wav_to_hdf5(tiny_train_directory_path, '../dataset/tiny-train-librispeech')
+    wav_to_hdf5(tiny_dev_directory_path, '../dataset/tiny-dev-librispeech')
 
 
 
