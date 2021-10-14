@@ -18,23 +18,23 @@ class CPC(nn.Module):
         self.encoder = nn.Sequential(
             collections.OrderedDict(
                 [
-                    ('encoder_conv01', nn.Conv1d(1, 512, kernel_size=10, stride=5, padding=3, bias=False)),
+                    ('encoder_conv01', nn.Conv1d(1, 512, kernel_size=10, stride=5, padding=3, bias=True)),
                     ('encoder_bn01', nn.BatchNorm1d(512)),
                     ('encoder_relu01', nn.ReLU(inplace=True)),
 
-                    ('encoder_conv02', nn.Conv1d(512, 512, kernel_size=8, stride=4, padding=3, bias=False)),
+                    ('encoder_conv02', nn.Conv1d(512, 512, kernel_size=8, stride=4, padding=3, bias=True)),
                     ('encoder_bn02', nn.BatchNorm1d(512)),
                     ('encoder_relu02', nn.ReLU(inplace=True)),
 
-                    ('encoder_conv03', nn.Conv1d(512, 512, kernel_size=4, stride=2, padding=3, bias=False)),
+                    ('encoder_conv03', nn.Conv1d(512, 512, kernel_size=4, stride=2, padding=3, bias=True)),
                     ('encoder_bn03', nn.BatchNorm1d(512)),
                     ('encoder_relu03', nn.ReLU(inplace=True)),
 
-                    ('encoder_conv04', nn.Conv1d(512, 512, kernel_size=4, stride=2, padding=3, bias=False)),
+                    ('encoder_conv04', nn.Conv1d(512, 512, kernel_size=4, stride=2, padding=3, bias=True)),
                     ('encoder_bn04', nn.BatchNorm1d(512)),
                     ('encoder_relu04', nn.ReLU(inplace=True)),
 
-                    ('encoder_conv05', nn.Conv1d(512, 512, kernel_size=4, stride=2, padding=3, bias=False)),
+                    ('encoder_conv05', nn.Conv1d(512, 512, kernel_size=4, stride=2, padding=3, bias=True)),
                     ('encoder_bn05', nn.BatchNorm1d(512)),
                     ('encoder_relu05', nn.ReLU(inplace=True)),
                 ]
@@ -133,6 +133,7 @@ class CPC(nn.Module):
 
 if __name__ == '__main__':
     CPC_model = CPC(12, 20480).cuda()
+    print(CPC_model.modules())
     joy_data = torch.rand(8, 1, 20480).cuda()
     accaracy, nce, hidden = CPC_model(joy_data, CPC_model.init_hidden(8))
     print("acc: ", accaracy)
