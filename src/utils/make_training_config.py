@@ -1,10 +1,10 @@
 import json
 
 configuration = {
-    "log_filename": "./training.log",
+    "log_filename": "./log/training.log",
     "dataset": {
-        "train_dataset": "./dataset/test-librispeech.h5",
-        "train_id_set": "./dataset/test-librispeech.txt",
+        "train_dataset": "./dataset/train-librispeech.h5",
+        "train_id_set": "./dataset/train-librispeech.txt",
         "validation_dataset": "./dataset/dev-librispeech.h5",
         "validation_id_set": "./dataset/dev-librispeech.txt",
         "num_workers": 8,
@@ -23,7 +23,7 @@ configuration = {
         "betas": (0.9, 0.98),
     },
     "train": {
-        "epoch": 10,
+        "epoch": 50,
     },
     "tensorboard": {
         "writer_name": "runs/test_space"

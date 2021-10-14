@@ -41,9 +41,7 @@ def get_dataloader(dataset, id_set, audio_window, batch_size, num_workers=8, shu
         WaveformDataset(hdf5_file=dataset, id_file=id_set, audio_window=audio_window),
         batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory
     )
-
     return temp
-
 
 
 if __name__ == '__main__':
