@@ -12,6 +12,14 @@ def get_optimizer(model_parameter, optimizer_param):
                               amsgrad=optimizer_param['amsgrad'],
                               betas=optimizer_param['betas'])
 
+    elif optimizer_param['optimizer_name'] == 'SGD':
+        return optimizer.SGD(params=model_parameter,
+                             lr=optimizer_param['learning_rate'],
+                             momentum=optimizer_param['momentum'],
+                             dampening=optimizer_param['dampening'],
+                             weight_decay=optimizer_param['weight_decay'],
+                             nesterov=optimizer_param['nesterov'])
+
 
 def get_scheduler(name, wrapped_optimizer, optimizer_param):
     if name == 'LambdaLR':
