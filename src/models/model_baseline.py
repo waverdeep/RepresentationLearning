@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import collections
-import torch.nn.functional as F
 import numpy as np
 
 
@@ -67,12 +66,6 @@ class CPC(nn.Module):
 
         self.apply(_weights_init)
 
-    def init_hidden(self, batch_size, use_gpu=True):
-        if use_gpu:
-            return torch.zeros(1, batch_size, 256).cuda()
-        else:
-            return torch.zeros(1, batch_size, 256)
-
     def forward(self, x, hidden):
         # 배치수 추출
         batch = x.size()[0]
@@ -131,11 +124,18 @@ class CPC(nn.Module):
         return accuracy, nce, hidden
 
 
+def init_hidden(batch_size, use_gpu=True):
+    if use_gpu:
+        return torch.zeros(1, batch_size, 256).cuda()
+    else:
+        return torch.zeros(1, batch_size, 256)
+
+
 if __name__ == '__main__':
     CPC_model = CPC(12, 20480).cuda()
     print(CPC_model.modules())
     joy_data = torch.rand(8, 1, 20480).cuda()
-    accaracy, nce, hidden = CPC_model(joy_data, CPC_model.init_hidden(8))
+    accaracy, nce, hidden = CPC_model(joy_data, init_hidden(8))
     print("acc: ", accaracy)
     print("nce: ", nce)
     print("hidden: ", hidden)
