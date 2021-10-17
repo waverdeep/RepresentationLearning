@@ -8,53 +8,93 @@ import src.utils.logger as logger
 import src.models.model_baseline as model_baseline
 import src.optimizers.optimizer_baseline as optimizer_baseline
 import src.utils.setup_tensorboard as tensorboard
+from apex.parallel import DistributedDataParallel as DDP
+import torch.backends.cudnn as cudnn
+import torch.distributed as distributed
 
 
 def main():
-    # configruation 파라미터를 argparse로 받아오기
-    parser = argparse.ArgumentParser(description='pytorch representation learning')
-    parser.add_argument('--configuration', required=False, default='./config/config_baseline.json')
+    # CONFIGURATION 파라미터를 argparse로 받아오기
+    parser = argparse.ArgumentParser(description='pytorch representation learning type01')
+    # DISTRIBUTED 사용하기 위해서는 local rank를 argument로 받아야함. 그러면 torch.distributed.launch에서 알아서 해줌
+    parser.add_argument("--local_rank", default=0, type=int)
+    parser.add_argument('--configuration', required=False, default='./config/config_direct_train01.json')
     args = parser.parse_args()
+
+    torch.cuda.is_available()
 
     # 학습에 필요한 모든 configuration 및 파라미터들을 json으로 불러오기
     with open(args.configuration, 'r') as configuration:
         config = json.load(configuration)
     # 로거 생성하기
     format_logger = logger.setup_log(save_filename=config['log_filename'])
+
+    # DISTRIBUTED 사용하기 위해서 아래 작업을 해야하는데, WORLD_SIZE도 알아서 해줌
+    args.distributed = False
+    if 'WORLD_SIZE' in os.environ:
+        args.distributed = int(os.environ['WORLD_SIZE']) > 1
+        format_logger.info("APEX DISTRIBUTED: {}".format(args.distributed))
+
+    # DISTRIBUTED 할 수 있도록 .
+    if args.distributed:
+        # FOR DISTRIBUTED:  Set the device according to local_rank.
+        torch.cuda.set_device(args.local_rank)
+
+        # FOR DISTRIBUTED:  Initialize the backend.  torch.distributed.launch will provide
+        # environment variables, and requires that you use init_method=`env://`.
+        torch.distributed.init_process_group(backend='nccl',
+                                             init_method='env://')
+    torch.backends.cudnn.benchmark = True
+
     # 모델 configuration 출력
     format_logger.info('configurations: {}'.format(config))
 
     format_logger.info("load train/validation dataset ...")
-    # 학습 데이터로더 생성
-    train_loader = dataset.get_dataloader(dataset=config['dataset']['train_dataset'],
-                                          id_set=config['dataset']['train_id_set'],
-                                          audio_window=config['parameter']['audio_window'],
-                                          batch_size=config['parameter']['batch_size'],
-                                          num_workers=config['dataset']['num_workers'],
-                                          shuffle=True, pin_memory=False)
-    # 검증 데이터로더 생성
-    validation_loader = dataset.get_dataloader(dataset=config['dataset']['validation_dataset'],
-                                               id_set=config['dataset']['validation_id_set'],
-                                               audio_window=config['parameter']['audio_window'],
-                                               batch_size=config['parameter']['batch_size'],
-                                               num_workers=config['dataset']['num_workers'],
-                                               shuffle=False, pin_memory=False)
+    # # 학습 데이터로더 생성
+    # train_loader = dataset.get_dataloader(dataset=config['dataset']['train_dataset'],
+    #                                       id_set=config['dataset']['train_id_set'],
+    #                                       audio_window=config['parameter']['audio_window'],
+    #                                       batch_size=config['parameter']['batch_size'],
+    #                                       num_workers=config['dataset']['num_workers'],
+    #                                       shuffle=True, pin_memory=True)
+    # # 검증 데이터로더 생성
+    # validation_loader = dataset.get_dataloader(dataset=config['dataset']['validation_dataset'],
+    #                                            id_set=config['dataset']['validation_id_set'],
+    #                                            audio_window=config['parameter']['audio_window'],
+    #                                            batch_size=config['parameter']['batch_size'],
+    #                                            num_workers=config['dataset']['num_workers'],
+    #                                            shuffle=False, pin_memory=True)
 
+    # 학습 데이터로더 생성
+    train_loader = dataset.get_dataloader_type_direct(directory_path=config['dataset']['train_dataset'],
+                                                      audio_window=config['parameter']['audio_window'],
+                                                      batch_size=config['parameter']['batch_size'],
+                                                      num_workers=config['dataset']['num_workers'],
+                                                      shuffle=True, pin_memory=True)
+    # 검증 데이터로더 생성
+    validation_loader = dataset.get_dataloader_type_direct(directory_path=config['dataset']['validation_dataset'],
+                                                           audio_window=config['parameter']['audio_window'],
+                                                           batch_size=config['parameter']['batch_size'],
+                                                           num_workers=config['dataset']['num_workers'],
+                                                           shuffle=False, pin_memory=True)
 
     format_logger.info("load model ...")
     # 모델 생성
-    model = model_baseline.CPC(timestep=config['parameter']['timestep'],
-                               audio_window=config['parameter']['audio_window'])
+    model = model_baseline.CPCType01(timestep=config['parameter']['timestep'],
+                                     audio_window=config['parameter']['audio_window'])
+    # GPU 환경 설정
+    if config['use_cuda']:
+        model = model.cuda()
+
+    # DISTRIBUTED 설정
+    if args.distributed:
+        model = DDP(model, delay_allreduce=True)
 
     # 텐서보드 셋업
     writer = tensorboard.set_tensorboard_writer(config['tensorboard']['writer_name'])
 
     # # 텐서보드로 모델 구조 보여주기
     # tensorboard.show_model_tensorboard_with_no_label(writer, model, train_loader, config['parameter']['batch_size'])
-
-    # GPU 환경 설정
-    if config['use_cuda']:
-        model = model.cuda()
 
     # 파라미터 개수 측정
     model_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -104,17 +144,17 @@ def main():
                             epoch=best_epoch,
                             format_logger=format_logger)
 
-
-
     # 텐서보드 종료
     tensorboard.close_tensorboard_writer(writer)
 
 
 def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
-    train_bar = tqdm(train_loader,
-                     desc='{}/{} epoch training ... '.format(epoch, config['train']['epoch']))
-    for batch_idx, data in enumerate(train_bar):
+    model.train()
+    # train_bar = tqdm(train_loader,
+    #                  desc='{}/{} epoch training ... '.format(epoch, config['train']['epoch']))
+    for batch_idx, data in enumerate(train_loader): # enumerate(train_bar):
         # convolution 연산을 위채 1채널 추가
+        # format_logger.info("load_data ... ")
         data = data.float().unsqueeze(1)
         # GPU 환경 설정
         if config['use_cuda']:
@@ -123,13 +163,15 @@ def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
         # 옵티마이저 초기화
         optimizer.zero_grad()
         # gru 모델에 들어간 hidden state 설정하기
-        hidden = model.init_hidden(len(data), config['use_cuda'])
+        hidden = model_baseline.init_hidden(len(data), config['use_cuda'])
+        # format_logger.info("pred_model ... ")
         accuracy, loss, hidden = model(data, hidden)
-        train_bar.set_description('{}/{} epoch [ acc: {}/ loss: {} ]'.format(
-            epoch, config['train']['epoch'], round(float(accuracy), 3), round(float(loss), 3)))
+        # train_bar.set_description('{}/{} epoch [ acc: {}/ loss: {} ]'.format(
+        #     epoch, config['train']['epoch'], round(float(accuracy), 3), round(float(loss), 3)))
         loss.backward()
         optimizer.step()
 
+        # format_logger.info("write_tensorboard ... ")
         # ...학습 중 손실(running loss)을 기록하고
         writer.add_scalar('Loss/train', loss, (epoch-1) * len(train_loader) + batch_idx)
         writer.add_scalar('Accuracy/train', accuracy * 100, (epoch-1) * len(train_loader) + batch_idx)
@@ -167,7 +209,7 @@ def validation(config, writer, epoch, model, validation_dataloader, format_logge
             if config['use_cuda']:
                 data = data.cuda()
 
-            hidden = model.init_hidden(len(data), config['use_cuda'])
+            hidden = model_baseline.init_hidden(len(data), config['use_cuda'])
             accuracy, loss, hidden = model(data, hidden)
 
             validation_bar.set_description('{}/{} epoch [ acc: {}/ loss: {} ]'.format(
@@ -201,4 +243,5 @@ def save_checkpoint(config, model, optimizer, loss, epoch,format_logger):
 
 
 if __name__ == '__main__':
+
     main()
