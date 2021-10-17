@@ -18,7 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description='pytorch representation learning type01')
     # DISTRIBUTED 사용하기 위해서는 local rank를 argument로 받아야함. 그러면 torch.distributed.launch에서 알아서 해줌
     parser.add_argument("--local_rank", default=0, type=int)
-    parser.add_argument('--configuration', required=False, default='./config/config_direct_train01.json')
+    parser.add_argument('--configuration', required=False, default='./config/config_type01_direct_train02.json')
     args = parser.parse_args()
 
     torch.cuda.is_available()
@@ -160,14 +160,13 @@ def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
         if config['use_cuda']:
             data = data.cuda()
 
-        # 옵티마이저 초기화
-        optimizer.zero_grad()
         # gru 모델에 들어간 hidden state 설정하기
         hidden = model_baseline.init_hidden(len(data), config['use_cuda'])
         # format_logger.info("pred_model ... ")
         accuracy, loss, hidden = model(data, hidden)
         # train_bar.set_description('{}/{} epoch [ acc: {}/ loss: {} ]'.format(
         #     epoch, config['train']['epoch'], round(float(accuracy), 3), round(float(loss), 3)))
+        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
