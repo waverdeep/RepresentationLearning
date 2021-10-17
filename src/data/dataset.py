@@ -4,7 +4,9 @@ import h5py
 import numpy as np
 from torch.utils.data import Dataset
 from torch.utils import data
-from src.utils import file_io_interface as io
+
+
+# 데이터셋의 속도를 가속화 시킬 필요성이 있음 (필수) 어떻게 하면 빨리할 수 있을까 고민해보아야 할듯
 
 
 class DirectWaveformDataset(Dataset):

@@ -4,7 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch
 import tensorflow as tf
 import tensorboard as tb
-tf.io.gfile = tb.compat.tensorflow_stub.io.gfile
+# tf.io.gfile = tb.compat.tensorflow_stub.io.gfile
 # console: tensorboard --logdir=runs --bind_all
 
 
