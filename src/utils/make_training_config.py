@@ -1,6 +1,6 @@
 import json
 
-name = 'direct_train02'
+name = 'direct_train06'
 
 configuration_type01 = {
     "log_filename": "./log/{}.log".format(name),
@@ -36,17 +36,24 @@ configuration_type01 = {
     },
     "use_cuda": True,
 }
-configuration = {
+
+configuration_type02 = {
     "log_filename": "./log/{}.log".format(name),
     "dataset": {
-        "train_dataset": './dataset/train-list-librispeech.txt',
-        "validation_dataset": './dataset/dev-list-librispeech.txt',
+        "train_dataset": "./dataset/train-list-librispeech.txt",
+        "validation_dataset": "./dataset/dev-list-librispeech.txt",
         "num_workers": 8,
     },
-    "parameter": {
-        "timestep": 12,
+    "model": {
+        "epoch": 300,
+        "batch_size": 8,
         "audio_window": 20480,
-        "batch_size": 512,
+        "strides": [5, 4, 2, 2, 2],
+        "filter_sizes": [10, 8, 4, 4, 4],
+        "paddings": [2, 2, 2, 2, 1],
+        "g_enc_hidden": 512,
+        "g_ar_hidden": 256,
+        "g_enc_input": 1,
     },
     "optimizer": {
         "optimizer_name": "Adam",
@@ -56,27 +63,12 @@ configuration = {
         "amsgrad": True,
         "betas": (0.9, 0.98),
     },
-    "train": {
-        "epoch": 3000,
-    },
-    "tensorboard": {
-        "writer_name": "runs/{}".format(name)
-    },
-    "checkpoint": {
-        "save_directory_path": "./checkpoint",
-        "file_name": "{}".format(name),
-    },
-    "use_cuda": True,
-}
-
-configuration_type02 = {
-    "log_filename": "./log/{}.log".format(name),
-    "dataset": {
-        "train_dataset": ".train-list-librispeech.txt",
-        # "train_id_set": "./dataset/train-librispeech.txt",
-        "validation_dataset": "dev-list-librispeech.txt",
-        # "validation_id_set": "./dataset/dev-librispeech.txt",
-        "num_workers": 8,
+    "loss": {
+      "learning_rate": 2.0e-4,
+      "prediction_step": 12, # Time steps k to predict into future
+      "negative_samples": 10, # Number of negative samples to be used for training
+      "subsample": True, # Boolean to decide whether to subsample from the total sequence lengh within intermediate layers
+      "calc_accuracy": True,
     },
     "tensorboard": {
         "writer_name": "runs/{}".format(name)
@@ -90,7 +82,7 @@ configuration_type02 = {
 }
 
 if __name__ == '__main__':
-    configuration_type = 1
+    configuration_type = 2
     if configuration_type == 1:
         filename = 'config_type01_{}.json'.format(name)
         with open('../../config/{}'.format(filename), 'w', encoding='utf-8') as config_file:
