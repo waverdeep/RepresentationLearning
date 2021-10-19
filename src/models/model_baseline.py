@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import collections
 import numpy as np
+import json
 import src.losses.loss_baseline as criterion
 
 
@@ -180,6 +181,7 @@ class Encoder(nn.Module):
 
 class AutoRegressive(nn.Module):
     def __init__(self, input_dim, hidden_dim):
+        self.hidden_dim = hidden_dim
         super(AutoRegressive, self).__init__()
         self.autoregressive = nn.GRU(
             input_dim,
@@ -209,7 +211,19 @@ if __name__ == '__main__':
     # print("acc: ", accaracy)
     # print("nce: ", nce)
     # print("hidden: ", hidden)
-    CPC_model = CPCType02()
+    with open('../../config/config_type02_direct_train03.json', 'r') as configuration:
+        config = json.load(configuration)
+    model = CPCType02(args=config,
+                      g_enc_input=config['model']['g_enc_input'],
+                      g_enc_hidden=config['model']['g_enc_hidden'],
+                      g_ar_hidden=config['model']['g_ar_hidden'],
+                      filter_sizes=config['model']['filter_sizes'],
+                      strides=config['model']['strides'],
+                      paddings=config['model']['paddings']).cuda()
+    joy_data = torch.rand(8, 1, 20480).cuda()
+    _loss, _accuracy, _z, _c = model(joy_data)
+    print(_accuracy)
+
 
 
 
