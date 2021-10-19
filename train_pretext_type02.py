@@ -11,7 +11,25 @@ import src.utils.setup_tensorboard as tensorboard
 from apex.parallel import DistributedDataParallel as DDP
 import torch.backends.cudnn as cudnn
 import torch.distributed as distributed
-torch.manual_seed(19980724)
+# torch.manual_seed(852) # -> 1
+# torch.manual_seed(756) # -> 2
+# torch.manual_seed(987) # -> 3
+# torch.manual_seed(456) # -> 4
+
+# torch.manual_seed(123) # -> 5
+
+# torch.manual_seed(123456) # -> 6
+# torch.manual_seed(9807241) # -> 7
+# torch.manual_seed(20211019) # -> 8
+# torch.manual_seed(246851) # -> 9
+torch.manual_seed(951951) # -> 10
+
+os.environ['MASTER_ADDR'] = '127.0.0.1'
+os.environ['MASTER_PORT'] = '29500'
+#
+GPU_NUM = 0 # 원하는 GPU 번호 입력
+device = torch.device(f'cuda:{GPU_NUM}' if torch.cuda.is_available() else 'cpu')
+torch.cuda.set_device(device) # change allocation of current GPU
 
 
 def main():
@@ -19,7 +37,7 @@ def main():
     parser = argparse.ArgumentParser(description='pytorch representation learning type02')
     # DISTRIBUTED 사용하기 위해서는 local rank를 argument로 받아야함. 그러면 torch.distributed.launch에서 알아서 해줌
     parser.add_argument("--local_rank", default=0, type=int)
-    parser.add_argument('--configuration', required=False, default='./config/config_type02_direct_train06.json')
+    parser.add_argument('--configuration', required=False, default='./config/config_type02_direct_train10.json')
     args = parser.parse_args()
 
     torch.cuda.is_available()

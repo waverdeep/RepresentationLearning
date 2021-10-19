@@ -166,9 +166,9 @@ class InfoNCE(nn.Module):
             if self.args['loss']['calc_accuracy']:
                 predicted = torch.argmax(results, 1).cuda()
                 true_labels = true_labels.cuda()
-
+                # true_labels[: (seq_len - k) * self.args['model']['batch_size']]
                 correct = (
-                    (predicted == true_labels[: (seq_len - k) * self.args['model']['batch_size']])
+                    (predicted == true_labels[: len(predicted)])
                     .sum()
                     .item()
                 )

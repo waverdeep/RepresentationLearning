@@ -1,6 +1,6 @@
 import json
 
-name = 'direct_train06'
+name = 'direct_train10'
 
 configuration_type01 = {
     "log_filename": "./log/{}.log".format(name),
@@ -46,7 +46,7 @@ configuration_type02 = {
     },
     "model": {
         "epoch": 300,
-        "batch_size": 8,
+        "batch_size": 256,
         "audio_window": 20480,
         "strides": [5, 4, 2, 2, 2],
         "filter_sizes": [10, 8, 4, 4, 4],
