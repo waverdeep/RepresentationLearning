@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 """
 InfoNCE
@@ -15,14 +16,14 @@ class InfoNCE(nn.Module):
         self.args = args
         self.gar_hidden = gar_hidden
         self.genc_hidden = genc_hidden
-        self.negative_samples = self.args.negative_samples
+        self.negative_samples = self.args['loss']['negative_samples']
 
         # predict |prediction_step| timesteps into the future
         self.predictor = nn.Linear(
-            gar_hidden, genc_hidden * self.args.prediction_step, bias=False
+            gar_hidden, genc_hidden * self.args['loss']['prediction_step'], bias=False
         )
 
-        if self.args.subsample:
+        if self.args['loss']['subsample']:
             self.subsample_win = 128
 
         self.loss = nn.LogSoftmax(dim=1)
@@ -30,7 +31,7 @@ class InfoNCE(nn.Module):
     def get(self, x, z, c):
         full_z = z
 
-        if self.args.subsample:
+        if self.args['loss']['subsample']:
             """ 
             positive samples are restricted to this subwindow to reduce the number of calculations for the loss, 
             negative samples can still come from any point of the input sequence (full_z)
@@ -129,8 +130,8 @@ class InfoNCE(nn.Module):
         """
         seq_len = z.size(1)
         total_loss = 0
-        accuracies = torch.zeros(self.args.prediction_step, 1)
-        true_labels = torch.zeros((seq_len * self.args.batch_size,)).long()
+        accuracies = torch.zeros(self.args['loss']['prediction_step'], 1)
+        true_labels = torch.zeros((seq_len * self.args['model']['batch_size'],)).long()
 
         # Which type of method to use for negative sampling:
         # 0 - inside the loop for the prediction time-steps. Slow, but samples from all but the current pos sample
@@ -142,7 +143,7 @@ class InfoNCE(nn.Module):
         # sampling method 1 / 2
         z_neg, _, _ = self.get_neg_z(full_z)
 
-        for k in range(1, self.args.prediction_step + 1):
+        for k in range(1, self.args['loss']['prediction_step'] + 1):
             z_k = z[:, k:, :]
             Wc_k = Wc[:, :-k, (k - 1) * self.genc_hidden : k * self.genc_hidden]
 
@@ -157,21 +158,23 @@ class InfoNCE(nn.Module):
             results = torch.cat((pos_samples, neg_samples), 1)
             loss = self.loss(results)[:, 0]
 
-            total_samples = (seq_len - k) * self.args.batch_size
+            total_samples = (seq_len - k) * self.args['model']['batch_size']
             loss = -loss.sum() / total_samples
             total_loss += loss
 
             # calculate accuracy
-            if self.args.calc_accuracy:
-                predicted = torch.argmax(results, 1)
+            if self.args['loss']['calc_accuracy']:
+                predicted = torch.argmax(results, 1).cuda()
+                true_labels = true_labels.cuda()
+
                 correct = (
-                    (predicted == true_labels[: (seq_len - k) * self.args.batch_size])
+                    (predicted == true_labels[: (seq_len - k) * self.args['model']['batch_size']])
                     .sum()
                     .item()
                 )
                 accuracies[k - 1] = correct / total_samples
 
-        total_loss /= self.args.prediction_step
+        total_loss /= self.args['loss']['prediction_step']
         accuracies = torch.mean(accuracies)
 
         return total_loss, accuracies
