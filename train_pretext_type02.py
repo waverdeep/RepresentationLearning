@@ -11,6 +11,7 @@ import src.utils.setup_tensorboard as tensorboard
 from apex.parallel import DistributedDataParallel as DDP
 import torch.backends.cudnn as cudnn
 import torch.distributed as distributed
+torch.manual_seed(19980724)
 
 
 def main():
@@ -18,7 +19,7 @@ def main():
     parser = argparse.ArgumentParser(description='pytorch representation learning type02')
     # DISTRIBUTED 사용하기 위해서는 local rank를 argument로 받아야함. 그러면 torch.distributed.launch에서 알아서 해줌
     parser.add_argument("--local_rank", default=0, type=int)
-    parser.add_argument('--configuration', required=False, default='./config/config_direct_train01.json')
+    parser.add_argument('--configuration', required=False, default='./config/config_type02_direct_train06.json')
     args = parser.parse_args()
 
     torch.cuda.is_available()
@@ -67,21 +68,26 @@ def main():
 
     # 학습 데이터로더 생성
     train_loader = dataset.get_dataloader_type_direct(directory_path=config['dataset']['train_dataset'],
-                                                      audio_window=config['parameter']['audio_window'],
-                                                      batch_size=config['parameter']['batch_size'],
+                                                      audio_window=config['model']['audio_window'],
+                                                      batch_size=config['model']['batch_size'],
                                                       num_workers=config['dataset']['num_workers'],
                                                       shuffle=True, pin_memory=True)
     # 검증 데이터로더 생성
     validation_loader = dataset.get_dataloader_type_direct(directory_path=config['dataset']['validation_dataset'],
-                                                           audio_window=config['parameter']['audio_window'],
-                                                           batch_size=config['parameter']['batch_size'],
+                                                           audio_window=config['model']['audio_window'],
+                                                           batch_size=config['model']['batch_size'],
                                                            num_workers=config['dataset']['num_workers'],
                                                            shuffle=False, pin_memory=True)
 
     format_logger.info("load model ...")
     # 모델 생성
-    model = model_baseline.CPCType01(timestep=config['parameter']['timestep'],
-                                     audio_window=config['parameter']['audio_window'])
+    model = model_baseline.CPCType02(args=config,
+                                     g_enc_input=config['model']['g_enc_input'],
+                                     g_enc_hidden=config['model']['g_enc_hidden'],
+                                     g_ar_hidden=config['model']['g_ar_hidden'],
+                                     filter_sizes=config['model']['filter_sizes'],
+                                     strides=config['model']['strides'],
+                                     paddings=config['model']['paddings'])
     # GPU 환경 설정
     if config['use_cuda']:
         model = model.cuda()
@@ -111,7 +117,7 @@ def main():
     # 학습 코드 작성
     best_accuracy = 0
 
-    num_of_epoch = config['train']['epoch']
+    num_of_epoch = config['model']['epoch']
     for epoch in range(num_of_epoch):
         epoch = epoch + 1
 
@@ -151,8 +157,8 @@ def main():
 def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
     model.train()
     # train_bar = tqdm(train_loader,
-    #                  desc='{}/{} epoch training ... '.format(epoch, config['train']['epoch']))
-    for batch_idx, data in enumerate(train_loader): # enumerate(train_bar):
+    #                  desc='{}/{} epoch training ... '.format(epoch, config['model']['epoch']))
+    for batch_idx, data in enumerate(train_loader): #enumerate(train_bar):
         # convolution 연산을 위채 1채널 추가
         # format_logger.info("load_data ... ")
         data = data.float().unsqueeze(1)
@@ -160,14 +166,14 @@ def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
         if config['use_cuda']:
             data = data.cuda()
 
+
+        # gru 모델에 들어간 hidden state 설정하기
+        # format_logger.info("pred_model ... ")
+        loss, accuracy, _, _ = model(data)
+        # train_bar.set_description('{}/{} epoch [ acc: {} ]'.format(
+        #     epoch, config['model']['epoch'], round(float(accuracy), 3)))
         # 옵티마이저 초기화
         optimizer.zero_grad()
-        # gru 모델에 들어간 hidden state 설정하기
-        hidden = model_baseline.init_hidden(len(data), config['use_cuda'])
-        # format_logger.info("pred_model ... ")
-        accuracy, loss, hidden = model(data, hidden)
-        # train_bar.set_description('{}/{} epoch [ acc: {}/ loss: {} ]'.format(
-        #     epoch, config['train']['epoch'], round(float(accuracy), 3), round(float(loss), 3)))
         loss.backward()
         optimizer.step()
 
@@ -200,20 +206,19 @@ def validation(config, writer, epoch, model, validation_dataloader, format_logge
     total_accuracy = 0.0
 
     with torch.no_grad():
-        validation_bar = tqdm(validation_dataloader,
-                              desc='{}/{} epoch validating ... '.format(epoch, config['train']['epoch']))
-        for batch_idx, data in enumerate(validation_bar):
+        # validation_bar = tqdm(validation_dataloader,
+        #                       desc='{}/{} epoch validating ... '.format(epoch, config['model']['epoch']))
+        for batch_idx, data in enumerate(validation_dataloader): #enumerate(validation_bar):
             # convolution 연산을 위채 1채널 추가
             data = data.float().unsqueeze(1)
             # GPU 환경 설정
             if config['use_cuda']:
                 data = data.cuda()
 
-            hidden = model_baseline.init_hidden(len(data), config['use_cuda'])
-            accuracy, loss, hidden = model(data, hidden)
+            loss, accuracy, _, _ = model(data)
 
-            validation_bar.set_description('{}/{} epoch [ acc: {}/ loss: {} ]'.format(
-                                           epoch, config['train']['epoch'], round(float(accuracy), 3), round(float(loss), 3)))
+            # validation_bar.set_description('{}/{} epoch [ acc: {}/ loss: {} ]'.format(
+            #                                epoch, config['model']['epoch'], round(float(accuracy), 3), round(float(loss), 3)))
 
             # ...검증 중 손실(running loss)을 기록하고
             writer.add_scalar('Loss/validate', loss, (epoch - 1) * len(validation_dataloader) + batch_idx)
@@ -226,7 +231,7 @@ def validation(config, writer, epoch, model, validation_dataloader, format_logge
         total_accuracy /= len(validation_dataloader.dataset)  # average acc
 
         format_logger.info("[ {}/{} epoch validation result: [ average acc: {}/ average loss: {} ]".format(
-            epoch, config['train']['epoch'], total_accuracy, total_loss
+            epoch, config['model']['epoch'], total_accuracy, total_loss
         ))
 
     return total_accuracy, total_loss
