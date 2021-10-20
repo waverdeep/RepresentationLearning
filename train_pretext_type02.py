@@ -22,12 +22,12 @@ import torch.distributed as distributed
 # torch.manual_seed(9807241) # -> 7
 # torch.manual_seed(20211019) # -> 8
 # torch.manual_seed(246851) # -> 9
-torch.manual_seed(951951) # -> 10
+# torch.manual_seed(951951) # -> 10
 
-os.environ['MASTER_ADDR'] = '127.0.0.1'
-os.environ['MASTER_PORT'] = '29500'
+# os.environ['MASTER_ADDR'] = '127.0.0.1'
+# os.environ['MASTER_PORT'] = '29500'
 #
-GPU_NUM = 0 # 원하는 GPU 번호 입력
+GPU_NUM = 1 # 원하는 GPU 번호 입력
 device = torch.device(f'cuda:{GPU_NUM}' if torch.cuda.is_available() else 'cpu')
 torch.cuda.set_device(device) # change allocation of current GPU
 
@@ -109,6 +109,16 @@ def main():
     # GPU 환경 설정
     if config['use_cuda']:
         model = model.cuda()
+
+    format_logger.info("load checkpoint ...")
+    if config['checkpoint']['load_checkpoint'] != '':
+        if config['use_cuda'] == True:
+            checkpoint = torch.load(config['checkpoint']['load_checkpoint'])
+            model.load_state_dict(checkpoint['model_state_dict'])
+        else:
+            device = torch.device('cpu')
+            checkpoint = torch.load(config['checkpoint']['load_checkpoint'], map_location=device)
+            model.load_state_dict(checkpoint['model_state_dict'])
 
     # DISTRIBUTED 설정
     if args.distributed:
