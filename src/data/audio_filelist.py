@@ -15,12 +15,29 @@ def get_audio_list(directory_path_list, new_filepath_without_extension, audio_wi
     audio_list_file.close()
 
 
+def get_speaker_list(directory_path_list, new_filepath_without_extension):
+    audio_id_file = open('{}.txt'.format(new_filepath_without_extension), 'w')
+    speaker_list = []
+    for directory in directory_path_list:
+        file_list = io.get_all_file_path(directory, 'flac')
+        for file in tqdm(file_list, desc=directory):
+            filename = io.get_pure_filename(file)
+            speaker_list.append(filename.split('-')[0])
+    speaker_list = list(set(speaker_list))
+    for index, speaker in enumerate(speaker_list):
+        audio_id_file.write('{} {}\n'.format(speaker, index))
+    audio_id_file.close()
+
+
 if __name__ == '__main__':
     train_directory_path = ['../../dataset/LibriSpeech/train-clean-100', '../../dataset/LibriSpeech/train-clean-360',
                             '../../dataset/LibriSpeech/train-other-500']
     dev_directory_path = ['../../dataset/LibriSpeech/dev-clean', '../../dataset/LibriSpeech/dev-other']
     test_directory_path = ['../../dataset/LibriSpeech/test-clean', '../../dataset/LibriSpeech/test-other']
 
-    get_audio_list(train_directory_path, '../../dataset/train-list-librispeech', audio_window=20480)
-    get_audio_list(dev_directory_path, '../../dataset/dev-list-librispeech', audio_window=20480)
-    get_audio_list(test_directory_path, '../../dataset/test-list-librispeech', audio_window=20480)
+    # get_audio_list(train_directory_path, '../../dataset/train-list-librispeech', audio_window=20480)
+    # get_audio_list(dev_directory_path, '../../dataset/dev-list-librispeech', audio_window=20480)
+    # get_audio_list(test_directory_path, '../../dataset/test-list-librispeech', audio_window=20480)
+    get_speaker_list(train_directory_path,  '../../dataset/train-speaker-list-librispeech')
+    get_speaker_list(dev_directory_path,  '../../dataset/dev-speaker-list-librispeech')
+    get_speaker_list(test_directory_path,  '../../dataset/test-speaker-list-librispeech')
