@@ -133,8 +133,7 @@ class CPCType02(nn.Module):
                                hidden_dim=g_enc_hidden,
                                filter_sizes=filter_sizes,
                                strides=strides,
-                               paddings=paddings,
-                               )
+                               paddings=paddings, )
         self.autoregressive = AutoRegressive(input_dim=g_enc_hidden,
                                              hidden_dim=g_ar_hidden,
                                              )
@@ -164,7 +163,7 @@ class Encoder(nn.Module):
                 len(strides) == len(filter_sizes) == len(paddings)
         ), "Inconsistent length of strides, filter sizes and padding"
 
-        self.encoder= nn.Sequential()
+        self.encoder = nn.Sequential()
         for index, (stride, filter_size, padding) in enumerate(zip(strides, filter_sizes, paddings)):
             self.encoder.add_module(
                 "encoder_layer_{}".format(index),

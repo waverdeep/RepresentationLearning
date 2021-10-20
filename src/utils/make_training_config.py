@@ -14,7 +14,7 @@ configuration_type01 = {
     "parameter": {
         "timestep": 12,
         "audio_window": 20480,
-        "batch_size": 512,
+        "batch_size": 8,
     },
     "optimizer": {
         "optimizer_name": "Adam",
@@ -76,6 +76,7 @@ configuration_type02 = {
     "checkpoint": {
         "save_directory_path": "./checkpoint",
         "file_name": "{}".format(name),
+        "load_checkpoint": ''
     },
     "use_cuda": True,
 
