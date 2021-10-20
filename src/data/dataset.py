@@ -4,16 +4,17 @@ import h5py
 import numpy as np
 from torch.utils.data import Dataset
 from torch.utils import data
+from src.utils import file_io_interface
 
 
 # 데이터셋의 속도를 가속화 시킬 필요성이 있음 (필수) 어떻게 하면 빨리할 수 있을까 고민해보아야 할듯
 
-
 class DirectWaveformDataset(Dataset):
     def __init__(self, directory_path, audio_window=20480):
+        self.directory_path = directory_path
         self.audio_window = audio_window
         self.file_list = []
-        id_data = open(directory_path, 'r')
+        id_data = open(self.directory_path, 'r')
         # strip() 함수를 사용해서 뒤에 개행을 제거
         self.file_list = [x.strip() for x in id_data.readlines()]
         id_data.close()
@@ -61,6 +62,24 @@ class WaveformDataset(Dataset):
         return item[0, random_index:random_index + self.audio_window]
 
 
+class SpeakerClassificationDataset(DirectWaveformDataset):
+    def __init__(self, speaker_index_file, directory_path, audio_window=20480):
+        super(DirectWaveformDataset, self).__init__()
+        DirectWaveformDataset.__init__(self, directory_path=directory_path, audio_window=audio_window)
+        self.speaker2index = {}
+        speaker_data = open(speaker_index_file, 'r')
+        speaker_list = [x.strip() for x in speaker_data]
+        for i in speaker_list:
+            self.speaker2index[i.split(' ')[0]] = int(i.split(' ')[1])
+
+    def __getitem__(self, index):
+        item = DirectWaveformDataset.__getitem__(self, index=index)
+        audio_file = self.file_list[index]
+        audio_file_name = file_io_interface.get_pure_filename(audio_file)
+        label = torch.tensor(self.speaker2index[audio_file_name.split('-')[0]])
+        return item, label
+
+
 def get_dataloader(dataset, id_set, audio_window, batch_size, num_workers=8, shuffle=True, pin_memory=False):
     dataset = WaveformDataset(hdf5_file=dataset, id_file=id_set, audio_window=audio_window)
     # sampler = DistributedSampler(dataset)
@@ -87,14 +106,38 @@ def get_dataloader_type_direct(directory_path, audio_window, batch_size, num_wor
     return temp
 
 
+def get_dataloader_speaker_classification(directory_path, audio_window,
+                                          batch_size, num_workers, shuffle, pin_memory, speaker_index_file):
+    dataset = SpeakerClassificationDataset(speaker_index_file=speaker_index_file,
+                                           directory_path=directory_path,
+                                           audio_window=audio_window)
+    temp = data.DataLoader(dataset=dataset,
+                           batch_size=batch_size,
+                           shuffle=shuffle,
+                           num_workers=num_workers,
+                           pin_memory=pin_memory
+    )
+    return temp
+
+
 if __name__ == '__main__':
-    temp_id = open('../dataset/test-librispeech.txt', 'r')
-    sample = temp_id.readline().strip()
-    print(sample)
-    file = h5py.File('../dataset/test-librispeech.h5', 'r')
-    data = torch.tensor(file[sample])
-    print(len(data[0]))
-    print(len(data[0, 0:20480]))
+    # temp_id = open('../dataset/test-librispeech.txt', 'r')
+    # sample = temp_id.readline().strip()
+    # print(sample)
+    # file = h5py.File('../dataset/test-librispeech.h5', 'r')
+    # data = torch.tensor(file[sample])
+    # print(len(data[0]))
+    # print(len(data[0, 0:20480]))
+
+    get_dataloader_speaker_classification(
+        directory_path='../../dataset/test-list-librispeech.txt',
+        audio_window=20480,
+        batch_size=8,
+        num_workers=8,
+        shuffle=True,
+        pin_memory=False,
+        speaker_index_file='../../dataset/test-speaker-list-librispeech.txt'
+    )
 
 
 
