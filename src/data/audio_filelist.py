@@ -24,6 +24,7 @@ def get_speaker_list(directory_path_list, new_filepath_without_extension):
             filename = io.get_pure_filename(file)
             speaker_list.append(filename.split('-')[0])
     speaker_list = list(set(speaker_list))
+    print('speaker_list: ', len(speaker_list))
     for index, speaker in enumerate(speaker_list):
         audio_id_file.write('{} {}\n'.format(speaker, index))
     audio_id_file.close()
