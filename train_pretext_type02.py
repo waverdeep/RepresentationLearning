@@ -176,7 +176,16 @@ def main():
                             optimizer=optimizer,
                             loss=validation_loss,
                             epoch=best_epoch,
-                            format_logger=format_logger)
+                            format_logger=format_logger,
+                            keyword="-model_best.pt")
+        if (epoch+1)/5 == 0:
+            save_checkpoint(config=config,
+                            model=model,
+                            optimizer=optimizer,
+                            loss=validation_loss,
+                            epoch=best_epoch,
+                            format_logger=format_logger,
+                            keyword="-model_epoch{}.pt".format(epoch+1))
 
     # 텐서보드 종료
     tensorboard.close_tensorboard_writer(writer)
@@ -265,9 +274,9 @@ def validation(config, writer, epoch, model, validation_dataloader, format_logge
     return total_accuracy, total_loss
 
 
-def save_checkpoint(config, model, optimizer, loss, epoch,format_logger):
+def save_checkpoint(config, model, optimizer, loss, epoch, format_logger, keyword):
     file_path = os.path.join(config['checkpoint']['save_directory_path'],
-                             config['checkpoint']['file_name'] + "-model_best.pt")
+                             config['checkpoint']['file_name'] + keyword)
     torch.save({
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
