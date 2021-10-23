@@ -135,8 +135,7 @@ class CPCType02(nn.Module):
                                strides=strides,
                                paddings=paddings, )
         self.autoregressive = AutoRegressive(input_dim=g_enc_hidden,
-                                             hidden_dim=g_ar_hidden,
-                                             )
+                                             hidden_dim=g_ar_hidden,)
         self.loss = criterion.InfoNCE(args=args, gar_hidden=g_ar_hidden, genc_hidden=g_enc_hidden)
 
     # pretext model에서 latent vector들을 추출하는 함수 작성함 (latent z, ct)
@@ -180,8 +179,8 @@ class Encoder(nn.Module):
 
 class AutoRegressive(nn.Module):
     def __init__(self, input_dim, hidden_dim):
-        self.hidden_dim = hidden_dim
         super(AutoRegressive, self).__init__()
+        self.hidden_dim = hidden_dim
         self.autoregressive = nn.GRU(
             input_dim,
             hidden_dim,
@@ -213,13 +212,13 @@ if __name__ == '__main__':
     with open('../../config/config_type02_direct_train03.json', 'r') as configuration:
         config = json.load(configuration)
     model = CPCType02(args=config,
-                      g_enc_input=config['model']['g_enc_input'],
-                      g_enc_hidden=config['model']['g_enc_hidden'],
-                      g_ar_hidden=config['model']['g_ar_hidden'],
+                      g_enc_input=1,
+                      g_enc_hidden=512,
+                      g_ar_hidden=256,
                       filter_sizes=config['model']['filter_sizes'],
                       strides=config['model']['strides'],
                       paddings=config['model']['paddings']).cuda()
-    joy_data = torch.rand(8, 1, 20480).cuda()
+    joy_data = torch.rand(8, 1, 32000).cuda()
     _loss, _accuracy, _z, _c = model(joy_data)
     print(_accuracy)
 
