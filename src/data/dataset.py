@@ -25,11 +25,16 @@ class DirectWaveformDataset(Dataset):
     def __getitem__(self, index):
         audio_file = self.file_list[index]
         audio_file = audio_file[4:]
-        waveform, sampling_rate = torchaudio.load("{}".format(audio_file))
+        # torchaudio로 읽음
+        waveform, sampling_rate = torchaudio.load("{}".format(audio_file), normalization=False)
+        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
+        assert (
+            sampling_rate == 16000
+        ), "sampling rate is not consistent throughout the dataset"
         audio_length = waveform.shape[1]
 
         random_index = np.random.randint(audio_length - self.audio_window + 1)
-        return waveform[0, random_index:random_index + self.audio_window]
+        return waveform[:, random_index:random_index + self.audio_window]
 
 
 class WaveformDataset(Dataset):
