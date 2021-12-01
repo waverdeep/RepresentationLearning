@@ -4,16 +4,18 @@ import numpy as np
 from torch.utils.data import Dataset
 from torch.utils import data
 from src.utils import file_io_interface
+torchaudio.set_audio_backend("sox_io")
 
 
 def audio_loader(audio_file):
-    return torchaudio.load(audio_file, normalization=False)
+    return torchaudio.load(audio_file)
 
 
-class DirectWaveformDataset(Dataset):
-    def __init__(self, directory_path, audio_window=20480):
+class WaveformDataset(Dataset):
+    def __init__(self, directory_path, audio_window=20480, use_cuda=False):
         self.directory_path = directory_path
         self.audio_window = audio_window
+        self.use_cuda = use_cuda
 
         self.file_list = []
         id_data = open(self.directory_path, 'r')
@@ -35,13 +37,15 @@ class DirectWaveformDataset(Dataset):
         audio_length = waveform.shape[1]
         random_index = np.random.randint(audio_length - self.audio_window + 1)
         waveform = waveform[:, random_index: random_index+self.audio_window]
+
+
         return waveform
 
 
-class SpeakerClassificationDataset(DirectWaveformDataset):
+class SpeakerClassificationDataset(WaveformDataset):
     def __init__(self, speaker_index_file, directory_path, audio_window=20480):
-        super(DirectWaveformDataset, self).__init__()
-        DirectWaveformDataset.__init__(self, directory_path=directory_path, audio_window=audio_window)
+        super(WaveformDataset, self).__init__()
+        WaveformDataset.__init__(self, directory_path=directory_path, audio_window=audio_window)
         self.speaker2index = {}
         speaker_data = open(speaker_index_file, 'r')
         speaker_list = [x.strip() for x in speaker_data]
@@ -49,11 +53,31 @@ class SpeakerClassificationDataset(DirectWaveformDataset):
             self.speaker2index[i.split(' ')[0]] = int(i.split(' ')[1])
 
     def __getitem__(self, index):
-        item = DirectWaveformDataset.__getitem__(self, index=index)
+        item = WaveformDataset.__getitem__(self, index=index)
         audio_file = self.file_list[index]
         audio_file_name = file_io_interface.get_pure_filename(audio_file)
         label = torch.tensor(self.speaker2index[audio_file_name.split('-')[0]])
         return item, label
+
+
+def get_dataloader(config, mode='train'):
+    dataset = None
+    dataloader = None
+    if config['dataset_type'] == 'WaveformDataset':
+        dataset = WaveformDataset(
+            directory_path=config['{}_dataset'.format(mode)],
+            audio_window=config['audio_window'],
+            use_cuda=config['use_cuda'],
+        )
+        dataloader = data.DataLoader(
+            dataset=dataset,
+            batch_size=config['batch_size'],
+            shuffle=config['dataset_shuffle'],
+            num_workers=config['num_workers'],
+            pin_memory=config['pin_memory'],
+        )
+    return dataloader
+
 
 
 def get_dataloader_type_direct(directory_path, audio_window, batch_size, num_workers, shuffle, pin_memory):
