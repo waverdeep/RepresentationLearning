@@ -11,17 +11,35 @@ def audio_loader(audio_file):
     return torchaudio.load(audio_file)
 
 
+def get_speaker_list(file_list):
+    speaker_list = []
+    for index, file in enumerate(file_list):
+        filename = file.split("/")[-1]
+        filename = filename.split(".")[0]
+        speaker_id = filename.split("-")[0] # speaker_id, dir_id, sample_id
+        speaker_list.append(speaker_id)
+    return speaker_list
+
+
+def get_speaker_dict(speaker_list):
+    speaker_id_dict = {}
+    for idx, key in enumerate(sorted(list(set(speaker_list)))):
+        speaker_id_dict[key] = idx
+    return speaker_id_dict
+
+
 class WaveformDataset(Dataset):
-    def __init__(self, directory_path, audio_window=20480, use_cuda=False):
+    def __init__(self, directory_path, audio_window=20480):
         self.directory_path = directory_path
         self.audio_window = audio_window
-        self.use_cuda = use_cuda
 
         self.file_list = []
         id_data = open(self.directory_path, 'r')
         # strip() 함수를 사용해서 뒤에 개행을 제거
         self.file_list = [x.strip() for x in id_data.readlines()]
         id_data.close()
+        self.speaker_list = get_speaker_list(self.file_list)
+        self.speaker_dict = get_speaker_dict(self.speaker_list)
 
     def __len__(self):
         return len(self.file_list)
@@ -30,6 +48,10 @@ class WaveformDataset(Dataset):
         audio_file = self.file_list[index]
         audio_file = audio_file[4:]
         waveform, sampling_rate = audio_loader("{}".format(audio_file))
+        filename = audio_file.split("/")[-1]
+        filename = filename.split(".")[0] # speaker_id, dir_id, sample_id
+        speaker_id = filename.split("-")[0]
+
         # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
         assert (
             sampling_rate == 16000
@@ -37,27 +59,7 @@ class WaveformDataset(Dataset):
         audio_length = waveform.shape[1]
         random_index = np.random.randint(audio_length - self.audio_window + 1)
         waveform = waveform[:, random_index: random_index+self.audio_window]
-
-
-        return waveform
-
-
-class SpeakerClassificationDataset(WaveformDataset):
-    def __init__(self, speaker_index_file, directory_path, audio_window=20480):
-        super(WaveformDataset, self).__init__()
-        WaveformDataset.__init__(self, directory_path=directory_path, audio_window=audio_window)
-        self.speaker2index = {}
-        speaker_data = open(speaker_index_file, 'r')
-        speaker_list = [x.strip() for x in speaker_data]
-        for i in speaker_list:
-            self.speaker2index[i.split(' ')[0]] = int(i.split(' ')[1])
-
-    def __getitem__(self, index):
-        item = WaveformDataset.__getitem__(self, index=index)
-        audio_file = self.file_list[index]
-        audio_file_name = file_io_interface.get_pure_filename(audio_file)
-        label = torch.tensor(self.speaker2index[audio_file_name.split('-')[0]])
-        return item, label
+        return waveform, str(filename), str(speaker_id)
 
 
 def get_dataloader(config, mode='train'):
@@ -67,7 +69,6 @@ def get_dataloader(config, mode='train'):
         dataset = WaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
-            use_cuda=config['use_cuda'],
         )
         dataloader = data.DataLoader(
             dataset=dataset,
@@ -76,54 +77,42 @@ def get_dataloader(config, mode='train'):
             num_workers=config['num_workers'],
             pin_memory=config['pin_memory'],
         )
-    return dataloader
-
-
-
-def get_dataloader_type_direct(directory_path, audio_window, batch_size, num_workers, shuffle, pin_memory):
-    dataset = DirectWaveformDataset(directory_path=directory_path, audio_window=audio_window)
-    temp = data.DataLoader(
-        dataset=dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=pin_memory
-    )
-    return temp
-
-
-def get_dataloader_speaker_classification(directory_path, audio_window,
-                                          batch_size, num_workers, shuffle, pin_memory, speaker_index_file):
-    dataset = SpeakerClassificationDataset(speaker_index_file=speaker_index_file,
-                                           directory_path=directory_path,
-                                           audio_window=audio_window)
-    temp = data.DataLoader(dataset=dataset,
-                           batch_size=batch_size,
-                           shuffle=shuffle,
-                           num_workers=num_workers,
-                           pin_memory=pin_memory
-    )
-    return temp
+    return dataloader, dataset
 
 
 if __name__ == '__main__':
-    # temp_id = open('../dataset/test-librispeech.txt', 'r')
-    # sample = temp_id.readline().strip()
-    # print(sample)
-    # file = h5py.File('../dataset/test-librispeech.h5', 'r')
-    # data = torch.tensor(file[sample])
-    # print(len(data[0]))
-    # print(len(data[0, 0:20480]))
+    config = {
+        "audio_window": 20480,
+        "batch_size": 1,
+        # dataset
+        "dataset_type": "WaveformDataset",
+        "train_dataset": "../../dataset/baseline-train-split.txt",
+        "test_dataset": "../../dataset/baseline-test-split.txt",
+        "num_workers": 16,
+        "dataset_shuffle": True,
+        "pin_memory": True,
+    }
+    train_loader, train_dataset = get_dataloader(config=config, mode='train')
+    for data in train_loader:
+        _, out_filename, speaker_id = data
+        print(out_filename)
+        print(speaker_id)
+        break
+    speaker_id_dict = {}
+    print(len(list(set(train_dataset.speaker_list))))
+    for idx, key in enumerate(sorted(list(set(train_dataset.speaker_list)))):
+        speaker_id_dict[key] = idx
+    print(speaker_id_dict)
 
-    get_dataloader_speaker_classification(
-        directory_path='../../dataset/test-list-librispeech.txt',
-        audio_window=20480,
-        batch_size=8,
-        num_workers=8,
-        shuffle=True,
-        pin_memory=False,
-        speaker_index_file='../../dataset/test-speaker-list-librispeech.txt'
-    )
+    # get_dataloader_speaker_classification(
+    #     directory_path='../../dataset/test-list-librispeech.txt',
+    #     audio_window=20480,
+    #     batch_size=8,
+    #     num_workers=8,
+    #     shuffle=True,
+    #     pin_memory=False,
+    #     speaker_index_file='../../dataset/test-speaker-list-librispeech.txt'
+    # )
 
 
 
