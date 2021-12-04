@@ -1,13 +1,11 @@
 import torch
-import torch.nn as nn
 import argparse
-import json
 import os
-from tqdm import tqdm
 import src.data.dataset as dataset
 import src.utils.logger as logger
+import src.utils.file_io_interface as file_io
 import src.models.model_baseline as model_baseline
-import src.optimizers.optimizer_baseline as optimizer_baseline
+import src.optimizers.optimizer as optimizer_baseline
 import src.utils.setup_tensorboard as tensorboard
 import src.utils.setup_criterion as criterion
 from apex.parallel import DistributedDataParallel as DDP
@@ -25,12 +23,6 @@ def setup_gpu(use, gpu_num):
             GPU_NUM = gpu_num  # 원하는 GPU 번호 입력
             device = torch.device(f'cuda:{GPU_NUM}' if torch.cuda.is_available() else 'cpu')
             torch.cuda.set_device(device)  # change allocation of current GPU
-
-
-def load_json_config(filename):
-    with open(filename, 'r') as configuration:
-        config = json.load(configuration)
-    return config
 
 
 def setup_distributed_parallel_processing(_distributed, format_logger, local_rank):
@@ -61,7 +53,7 @@ def main():
     args = parser.parse_args()
 
     # 학습에 필요한 모든 configuration 및 파라미터들을 json으로 불러오기
-    config = load_json_config(args.configuration)
+    config = file_io.load_json_config(args.configuration)
 
     # 로거 생성하기
     format_logger = logger.setup_log(save_filename=config['log_filename'])
@@ -153,12 +145,13 @@ def main():
     # 옵티마이저 생성
     optimizer = optimizer_baseline.get_optimizer(model_parameter=downstream_model.parameters(),
                                                  optimizer_param=config['optimizer'])
-
     # loss 생성
     loss_function = criterion.set_criterion("NLLLoss")
 
     # 학습 코드 작성
     best_accuracy = 0
+    global_step = 0
+    print_step = 100
 
     num_of_epoch = config['downstream_model']['epoch']
     for epoch in range(num_of_epoch):
@@ -174,7 +167,9 @@ def main():
               train_loader=train_loader,
               optimizer=optimizer,
               loss_function=loss_function,
-              format_logger=format_logger)
+              format_logger=format_logger,
+              global_step=global_step,
+              print_step=print_step)
 
         # 검증 함수 시작
         format_logger.info("start validating ... [ {}/{} epoch ]".format(epoch, num_of_epoch))
@@ -184,8 +179,10 @@ def main():
                                                           pretext_model=pretext_model,
                                                           downstream_model=downstream_model,
                                                           loss_function=loss_function,
-                                                          validation_dataloader=validation_loader,
-                                                          format_logger=format_logger)
+                                                          validation_loader=validation_loader,
+                                                          format_logger=format_logger,
+                                                          global_step=global_step,
+                                                          print_step=print_step)
 
         if validation_accuracy > best_accuracy:
             best_accuracy = validation_accuracy
@@ -197,7 +194,7 @@ def main():
                             epoch=best_epoch,
                             format_logger=format_logger)
 
-        if (epoch+1)/5 == 0:
+        if (epoch + 1 ) % 10 == 0:
             save_checkpoint(config=config,
                             model=downstream_model,
                             optimizer=optimizer,
@@ -211,7 +208,8 @@ def main():
     tensorboard.close_tensorboard_writer(writer)
 
 
-def train(config, writer, epoch, pretext_model, downstream_model, train_loader, optimizer, loss_function, format_logger):
+def train(config, writer, epoch, pretext_model, downstream_model, train_loader, optimizer,
+          loss_function, format_logger, global_step, print_step):
     pretext_model.eval() # freeze pretrain model parameters
     downstream_model.train()
 
@@ -219,16 +217,10 @@ def train(config, writer, epoch, pretext_model, downstream_model, train_loader, 
     total_accuracy = 0.0
 
     for batch_idx, [data, target] in enumerate(train_loader):
-        # convolution 연산을 위채 1채널 추가
-        # format_logger.info("load_data ... ")
-        data = data.float().unsqueeze(1)
-
         # GPU 환경 설정
         if config['use_cuda']:
             data = data.cuda()
             target = target.cuda()
-        # pretext model : gru 모델에 들어간 hidden state 설정하기
-        # format_logger.info("pred_model ... ")
         with torch.no_grad():
             p_loss, p_accuracy, z, c = pretext_model(data)
         # z -> latent vector
@@ -244,29 +236,48 @@ def train(config, writer, epoch, pretext_model, downstream_model, train_loader, 
         target = target.cpu()
         accuracy = accuracy_score(target, pred)
 
-        writer.add_scalar('Loss/batch-train', round(float(loss.item()), 3), (epoch - 1) * len(train_loader) + batch_idx)
-        writer.add_scalar('Accuracy/batch-train', round(float(accuracy * 100), 3), (epoch - 1) * len(train_loader) + batch_idx)
+        writer.add_scalar('Loss/spcls_train_step', loss, global_step)
+        writer.add_scalar('Accuracy/spcls_train_step', accuracy, global_step)
 
-        total_loss += len(data) * loss.item()
-        total_accuracy += len(data) * accuracy
+        total_loss += loss
+        total_accuracy += accuracy
+        global_step += 1
+        if batch_idx % print_step == 0:
+            format_logger.info(
+                "[Epoch {}/{}] train step {:04d}/{:04d} \t"
+                "Loss = {:.4f} Accuracy = {:.4f}".format(
+                    epoch, config['downstream_model']['epoch'],
+                    batch_idx, len(train_loader),
+                    loss,
+                    accuracy,
+                )
+            )
 
-        linear = 0
-        for idx, layer in enumerate(downstream_model.modules()):
-            if isinstance(layer, torch.nn.Linear):
-                writer.add_histogram("Linear/weights-{}".format(linear), layer.weight,
-                                     global_step=(epoch - 1) * len(train_loader) + batch_idx)
-                writer.add_histogram("Linear/bias-{}".format(linear), layer.bias,
-                                     global_step=(epoch - 1) * len(train_loader) + batch_idx)
-                linear += 1
+    total_loss /= len(train_loader)  # average loss
+    total_accuracy /= len(train_loader)  # average acc
 
-    total_loss /= len(train_loader.dataset)  # average loss
-    total_accuracy /= len(train_loader.dataset)  # average acc
+    writer.add_scalar('Loss/spcls_train_epoch', total_loss, epoch)
+    writer.add_scalar('Accuracy/spcls_train_epoch', total_accuracy, epoch)
 
-    writer.add_scalar('Loss/average-train', round(float(total_loss), 3), (epoch - 1) * len(train_loader) + batch_idx)
-    writer.add_scalar('Accuracy/average-train', round(float(total_accuracy * 100), 3), (epoch - 1) * len(train_loader) + batch_idx)
+    format_logger.info(
+        "[Epoch {}/{}] Loss {:.4f} Accuracy {:.4f}".format(
+            epoch, config['downstream_model']['epoch'],
+            total_loss, total_accuracy
+        )
+    )
+
+    linear = 0
+    for idx, layer in enumerate(downstream_model.modules()):
+        if isinstance(layer, torch.nn.Linear):
+            writer.add_histogram("Linear/weights-{}".format(linear), layer.weight,
+                                 global_step=(epoch - 1) * len(train_loader) + batch_idx)
+            writer.add_histogram("Linear/bias-{}".format(linear), layer.bias,
+                                 global_step=(epoch - 1) * len(train_loader) + batch_idx)
+            linear += 1
 
 
-def validation(config, writer, epoch, pretext_model, downstream_model, validation_dataloader, loss_function, format_logger):
+def validation(config, writer, epoch, pretext_model, downstream_model, validation_loader,
+               loss_function, format_logger, global_step, print_step):
     pretext_model.eval()
     downstream_model.eval()
 
@@ -274,17 +285,11 @@ def validation(config, writer, epoch, pretext_model, downstream_model, validatio
     total_accuracy = 0.0
 
     with torch.no_grad():
-        for batch_idx, [data, target] in enumerate(validation_dataloader):
-            # convolution 연산을 위채 1채널 추가
-            # format_logger.info("load_data ... ")
-            data = data.float().unsqueeze(1)
-
+        for batch_idx, [data, target] in enumerate(validation_loader):
             # GPU 환경 설정
             if config['use_cuda']:
                 data = data.cuda()
                 target = target.cuda()
-            # gru 모델에 들어간 hidden state 설정하기
-            # format_logger.info("pred_model ... ")
             loss, accuracy, z, c = pretext_model(data)
 
             _data = c[:, -1, :]
@@ -296,17 +301,27 @@ def validation(config, writer, epoch, pretext_model, downstream_model, validatio
             accuracy = accuracy_score(target, pred)
 
             # ...검증 중 손실(running loss)을 기록하고
-            writer.add_scalar('Loss/batch-validate', loss.item(), (epoch - 1) * len(validation_dataloader) + batch_idx)
-            writer.add_scalar('Accuracy/batch-validate', accuracy * 100, (epoch - 1) * len(validation_dataloader) + batch_idx)
+            writer.add_scalar('Loss/spcls_valid_step', loss, global_step)
+            writer.add_scalar('Accuracy/spcls_valid_step', accuracy, global_step)
+            total_loss += loss
+            total_accuracy += accuracy
+            global_step += 1
+            if batch_idx % print_step == 0:
+                format_logger.info(
+                    "[Epoch {}/{}] train step {:04d}/{:04d} \t"
+                    "Loss = {:.4f} Accuracy = {:.4f}".format(
+                        epoch, config['downstream_model']['epoch'],
+                        batch_idx, len(validation_loader),
+                        loss,
+                        accuracy,
+                    )
+                )
 
-            total_loss += len(data) * loss.item()
-            total_accuracy += len(data) * accuracy
+        total_loss /= len(validation_loader)  # average loss
+        total_accuracy /= len(validation_loader)  # average acc
 
-        total_loss /= len(validation_dataloader.dataset)  # average loss
-        total_accuracy /= len(validation_dataloader.dataset)  # average acc
-
-        writer.add_scalar('Loss/average-validate', round(float(total_loss), 3), (epoch - 1) * len(validation_dataloader) + batch_idx)
-        writer.add_scalar('Accuracy/average-validate', round(float(total_accuracy * 100), 3), (epoch - 1) * len(validation_dataloader) + batch_idx)
+        writer.add_scalar('Loss/spcls_valid_epoch', total_loss, epoch)
+        writer.add_scalar('Accuracy/spcls_valid_epoch', total_accuracy, epoch)
 
         format_logger.info("[ {}/{} epoch validation result: [ average acc: {}/ average loss: {} ]".format(
             epoch, config['downstream_model']['epoch'], total_accuracy, total_loss
