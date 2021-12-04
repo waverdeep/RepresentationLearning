@@ -26,6 +26,11 @@ class CPCModel(nn.Module):
         c = self.autoregressive(z)
         return z, c
 
+    def get_latent_size(self, input_size):
+        x = torch.zeros(input_size).cuda()
+        z, c = self.get_latent_representations(x)
+        return c.size(2), c.size(1)
+
     def forward(self, x):
         z, c = self.get_latent_representations(x)
         # loss 확인 필요
@@ -74,19 +79,21 @@ class AutoRegressive(nn.Module):
 
 
 if __name__ == '__main__':
-    with open('../../config/config_type02_direct_train03.json', 'r') as configuration:
+    with open('../../config/config_CPC_baseline_training01-batch24.json', 'r') as configuration:
         config = json.load(configuration)
     model = CPCModel(args=config,
                      g_enc_input=1,
                      g_enc_hidden=512,
                      g_ar_hidden=256,
-                     filter_sizes=config['model']['filter_sizes'],
-                     strides=config['model']['strides'],
-                     paddings=config['model']['paddings']).cuda()
-    joy_data = torch.rand(8, 1, 32000).cuda()
+                     filter_sizes=config['filter_sizes'],
+                     strides=config['strides'],
+                     paddings=config['paddings']).cuda()
+    joy_data = torch.rand(8, 1, 20480).cuda()
     _loss, _accuracy, _z, _c = model(joy_data)
+    print(_loss.size())
     print(_accuracy)
-
+    print(_z.size())
+    print(_c.size())
 
 
 
