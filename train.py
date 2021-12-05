@@ -7,14 +7,15 @@ import torch.cuda
 import src.optimizers.optimizer as optimizers
 import src.data.dataset as dataset
 import src.models.model as model_pack
-import src.utils.logger as logger
-import src.utils.setup_tensorboard as tensorboard
+import src.utils.interface_logger as logger
+import src.utils.interface_tensorboard as tensorboard
 from apex.parallel import DistributedDataParallel as DDP
 from datetime import datetime
-import src.utils.plots as plots
+import src.utils.interface_plot as plots
+import src.utils.interface_file_io as file_io
 
 
-def setup_seed(random_seed):
+def setup_seed(random_seed=777):
     torch.manual_seed(random_seed)
     # torch.backends.cudnn.deterministic = True # 연산 속도가 느려질 수 있음
     torch.backends.cudnn.benchmark = False
@@ -22,8 +23,8 @@ def setup_seed(random_seed):
     random.seed(random_seed)
 
 
-def setup_argparse(description, use_apex=False):
-    parser = argparse.ArgumentParser(description='waverdeep - representation learning')
+def setup_argparse(description='waverdeep - representation learning', use_apex=False):
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--configuration',
                         required=False, default='./config/config_CPC_baseline_training01-batch24.json')
     if use_apex:
@@ -37,6 +38,15 @@ def setup_timestamp():
     now = datetime.now()
     return "{}_{}_{}_{}_{}_{}".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
 
+
+def print_model_description(description="pretext", format_logger=None, model=None):
+    format_logger.info(">>> {}_model_structure <<<".format(description))
+    model_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    format_logger.info("{} model parameters: {}".format(description, model_params))
+    format_logger.info("{}".format(model))
+
+def setup_config(configuration):
+    return file_io.load_json_config(configuration)
 
 def setup_distributed_learning(config, format_logger):
     pass
