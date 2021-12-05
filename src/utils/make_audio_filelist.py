@@ -1,6 +1,6 @@
 import torchaudio
 from tqdm import tqdm
-import src.utils.file_io_interface as io
+import src.utils.interface_file_io as io
 
 
 def get_audio_list(directory_path_list, new_filepath, audio_window, file_extension="flac"):
