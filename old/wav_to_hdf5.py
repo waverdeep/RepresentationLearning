@@ -3,7 +3,7 @@ import h5py
 import glob
 import os
 from tqdm import tqdm
-from src.utils import file_io_interface as io
+from src.utils import interface_file_io as io
 
 '''
 Hierachical Data Format version 5

@@ -2,12 +2,12 @@ import torch
 import argparse
 import os
 import src.data.dataset as dataset
-import src.utils.logger as logger
-import src.utils.file_io_interface as file_io
+import src.utils.interface_logger as logger
+import src.utils.interface_file_io as file_io
 import src.models.model_baseline as model_baseline
 import src.optimizers.optimizer as optimizer_baseline
-import src.utils.setup_tensorboard as tensorboard
-import src.utils.setup_criterion as criterion
+import src.utils.interface_tensorboard as tensorboard
+import src.losses.criterion as criterion
 from apex.parallel import DistributedDataParallel as DDP
 import torch.backends.cudnn as cudnn
 import torch.distributed as distributed
