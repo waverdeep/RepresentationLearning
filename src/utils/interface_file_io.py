@@ -32,3 +32,23 @@ def make_directory(directory_name, format_logger=None):
             format_logger.info('Error: make directory: {}'.format(directory_name))
         else:
             print('Error: make directory: {}'.format(directory_name))
+
+
+def read_txt2list(file_path):
+    with open(file_path, 'r') as data:
+        file_list = [x.strip() for x in data.readlines()]
+    return file_list
+
+
+def make_list2txt(file_list, file_path):
+    with open('{}'.format(file_path), 'w') as output_file:
+        for index, file in enumerate(file_list):
+            output_file.write("{}\n".format(file))
+
+
+def list_divider(step, data):
+    split_len = int(len(data)/step)
+    return [data[i:i+split_len] for i in range(0, len(data), split_len)]
+
+
+
