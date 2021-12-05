@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from torch.utils import data
 from collections import defaultdict
-from src.utils import file_io_interface
+from src.utils import interface_file_io
 torchaudio.set_audio_backend("sox_io")
 
 
@@ -45,7 +45,7 @@ def get_speaker_align(file_list):
     return item_list, speaker_align
 
 
-class UrbanSound8KWaveformDataset(Dataset):
+class NormalWaveformDataset(Dataset):
     def __init__(self, directory_path, audio_window=20480):
         self.directory_path = directory_path
         self.audio_window = audio_window
@@ -71,6 +71,26 @@ class UrbanSound8KWaveformDataset(Dataset):
         random_index = np.random.randint(audio_length - self.audio_window + 1)
         waveform = waveform[:, random_index: random_index + self.audio_window]
         return waveform, 0, 0
+
+
+class LibriSpeechFullWaveformDataset(NormalWaveformDataset):
+
+    def __getitem__(self, index):
+        audio_file = self.file_list[index]
+        # audio_file = audio_file[4:]
+        waveform, sampling_rate = audio_loader("{}".format(audio_file))
+        filename = audio_file.split("/")[-1]
+        filename = filename.split(".")[0]  # speaker_id, dir_id, sample_id
+        speaker_id = filename.split("-")[0]
+
+        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
+        assert (
+                sampling_rate == 16000
+        ), "sampling rate is not consistent throughout the dataset"
+        # discard last part that is not a full 10ms
+        max_length = waveform.size(1) // 160 * 160
+        waveform = waveform[:max_length]
+        return waveform, str(filename), str(speaker_id)
 
 
 class LibriSpeechWaveformDataset(Dataset):
@@ -117,31 +137,28 @@ class LibriSpeechWaveformDataset(Dataset):
 
 def get_dataloader(config, mode='train'):
     dataset = None
-    dataloader = None
     if config['dataset_type'] == 'LibriSpeechWaveformDataset':
         dataset = LibriSpeechWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
-        dataloader = data.DataLoader(
-            dataset=dataset,
-            batch_size=config['batch_size'],
-            shuffle=config['dataset_shuffle'],
-            num_workers=config['num_workers'],
-            pin_memory=config['pin_memory'],
-        )
-    elif config['dataset_type'] == "UrbanSound8KWaveformDataset":
-        dataset = UrbanSound8KWaveformDataset(
+    elif config['dataset_type'] == 'LibriSpeechFullWaveformDataset':
+        dataset = LibriSpeechFullWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
-        dataloader = data.DataLoader(
-            dataset=dataset,
-            batch_size=config['batch_size'],
-            shuffle=config['dataset_shuffle'],
-            num_workers=config['num_workers'],
-            pin_memory=config['pin_memory'],
+    else:
+        dataset = NormalWaveformDataset(
+            directory_path=config['{}_dataset'.format(mode)],
+            audio_window=config['audio_window'],
         )
+    dataloader = data.DataLoader(
+        dataset=dataset,
+        batch_size=config['batch_size'],
+        shuffle=config['dataset_shuffle'],
+        num_workers=config['num_workers'],
+        pin_memory=config['pin_memory'],
+    )
     return dataloader, dataset
 
 
@@ -183,16 +200,16 @@ if __name__ == '__main__':
         "audio_window": 20480,
         "batch_size": 1,
         # dataset
-        "dataset_type": "UrbanSound8KWaveformDataset",
-        "train_dataset": "../../dataset/train-urbansound-20480.txt",
-        "test_dataset": "../../dataset/test-urbansound-20480.txt",
+        "dataset_type": "LibriSpeechFullWaveformDataset",
+        "train_dataset": "../../dataset/baseline-train-split.txt",
+        "test_dataset": "../../dataset/baseline-test-split.txt",
         "num_workers": 16,
         "dataset_shuffle": True,
         "pin_memory": True,
     }
     train_loader, train_dataset = get_dataloader(config=config, mode='train')
     for data in train_loader:
-        waveform, out_filename, speaker_id = data
+        _waveform, _out_filename, _speaker_id = data
 
         break
 
