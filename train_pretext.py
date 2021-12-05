@@ -7,10 +7,11 @@ import torch.cuda
 import src.optimizers.optimizer as optimizers
 import src.data.dataset as dataset
 import src.models.model as model_pack
-import src.utils.logger as logger
-import src.utils.setup_tensorboard as tensorboard
+import src.utils.interface_logger as logger
+import src.utils.interface_tensorboard as tensorboard
 from apex.parallel import DistributedDataParallel as DDP
 from datetime import datetime
+import src.utils.interface_plot as plots
 os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 random_seed = 777
 torch.manual_seed(random_seed)
@@ -26,7 +27,8 @@ def main():
     # DISTRIBUTED 사용하기 위해서는 local rank를 argument로 받아야함. 그러면 torch.distributed.launch에서 알아서 해줌
     parser.add_argument("--apex", default=False, type=bool)
     parser.add_argument("--local_rank", default=0, type=int)
-    parser.add_argument('--configuration', required=False, default='./config/config_CPC_baseline_500_training01-batch32.json')
+    parser.add_argument('--configuration', required=False,
+                        default='./config/config_CPC_baseline_500_training01-batch32.json')
     args = parser.parse_args()
 
     now = datetime.now()
@@ -62,7 +64,7 @@ def main():
     format_logger.info('load train/test dataset ...')
 
     # setup train/test dataloader
-    train_loader, _ = dataset.get_dataloader(config=config, mode='train')
+    train_loader, train_dataset = dataset.get_dataloader(config=config, mode='train')
     test_loader, _ = dataset.get_dataloader(config=config, mode='test')
 
     # load model
@@ -104,10 +106,12 @@ def main():
     num_of_epoch = config['epoch']
     for epoch in range(num_of_epoch):
         epoch = epoch + 1
+        # speaker_tsne(config, model, train_dataset, epoch, writer)
         format_logger.info("start train ... [ {}/{} epoch ]".format(epoch, num_of_epoch))
         train(config, writer, epoch, model, train_loader, optimizer, format_logger)
         format_logger.info("start test ... [ {}/{} epoch ]".format(epoch, num_of_epoch))
         test_accuracy, test_loss = test(config, writer, epoch, model, test_loader, format_logger)
+
 
         if test_accuracy > best_accuracy:
             best_accuracy = test_accuracy
@@ -202,6 +206,44 @@ def save_checkpoint(config, model, optimizer, loss, epoch, format_logger, mode="
         "optimizer_state_dict": optimizer.state_dict(),
         "epoch": epoch, "loss": loss}, file_path)
     format_logger.info("saved best checkpoint ... ")
+
+
+def speaker_tsne(config, model, dataset, epoch, writer):
+    tsne_cluster = 10
+    batch_size = config['batch_size']
+    audio_window = config['audio_window']
+    input_size = (batch_size, 1, audio_window)
+
+    model.eval()
+    with torch.no_grad():
+        latent_rep_size, latent_rep_len = model.get_latent_size(input_size)
+        features = torch.zeros(tsne_cluster, batch_size, latent_rep_size * latent_rep_len).cuda()
+        labels = torch.zeros(tsne_cluster, batch_size).cuda()
+
+        for index, speaker_idx in enumerate(dataset.speaker_align):
+            if index == tsne_cluster:
+                break
+
+            input_data = dataset.get_audio_by_speaker(speaker_idx, batch_size=batch_size)
+            input_data = input_data.cuda()
+            z, c = model.get_latent_representations(input_data)
+
+            z_representation = z.permute(0, 2, 1)
+            c_representation = c.permute(0, 2, 1)
+
+            features[index, :, :] = c_representation.reshape((batch_size, -1))
+            labels[index, :] = index
+
+    features = features.reshape(features.size(0) * features.size(1), -1).cpu()
+    labels = labels.reshape(-1, 1).cpu().numpy()
+
+    embedding = plots.tsne(config, features)
+    figure = plots.plot_tsne(config, embedding, labels, epoch)
+
+    # add to TensorBoard
+    writer.add_embedding(features, metadata=labels, global_step=epoch)
+    writer.add_figure("TSNE", figure, global_step=epoch)
+    writer.flush()
 
 
 if __name__ == '__main__':

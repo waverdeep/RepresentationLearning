@@ -6,11 +6,11 @@ import numpy as np
 import torch
 import random
 import torch.nn as nn
-import src.utils.logger as logger
+import src.utils.interface_logger as logger
 import src.data.dataset as dataset
 import src.models.model as model_pack
 import src.optimizers.optimizer as optimizers
-import src.utils.setup_tensorboard as tensorboard
+import src.utils.interface_tensorboard as tensorboard
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 random_seed = 777
 torch.manual_seed(random_seed)
@@ -27,7 +27,7 @@ def main():
     parser.add_argument("--apex", default=False, type=bool)
     parser.add_argument("--local_rank", default=0, type=int)
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_SpeakerClassification_training01.json')
+                        default='./config/config_SpeakerClassification_training02.json')
     args = parser.parse_args()
     now = datetime.now()
     timestamp = "{}_{}_{}_{}_{}_{}".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
@@ -55,6 +55,8 @@ def main():
     pretext_model = model_pack.load_model(config, config['pretext_model_name'], config['pretext_checkpoint'])
     downstream_model = model_pack.load_model(config, config['downstream_model_name'])
 
+    optimizer = optimizers.get_optimizer(downstream_model.parameters(), config)
+
     # if gpu available: load gpu
     if config['use_cuda']:
         pretext_model = pretext_model.cuda()
@@ -77,7 +79,6 @@ def main():
     format_logger.info("downstream model parameters: {}".format(model_params))
     format_logger.info("{}".format(downstream_model))
 
-    optimizer = optimizers.get_optimizer(downstream_model.parameters(), config)
     # start training
     best_accuracy = 0.0
     num_of_epoch = config['epoch']
@@ -89,6 +90,7 @@ def main():
         format_logger.info("start test ... [ {}/{} epoch ]".format(epoch, num_of_epoch))
         test_accuracy, test_loss = test(config, writer, epoch, pretext_model, downstream_model,
                                         test_loader, optimizer, format_logger, speaker_dict)
+
         if test_accuracy > best_accuracy:
             best_accuracy = test_accuracy
             best_epoch = epoch
