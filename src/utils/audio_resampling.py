@@ -1,6 +1,6 @@
 import soundfile as sf
 from tqdm import tqdm
-import src.utils.file_io_interface as io
+import src.utils.interface_file_io as io
 import librosa
 
 
