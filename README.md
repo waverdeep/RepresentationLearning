@@ -53,8 +53,12 @@ Add additional notes about how to deploy this on a live system / 라이브 시�
 
 ## BaseLine
 [jefflai108/Contrastive-Predictive-Coding-PyTorch](https://github.com/jefflai108/Contrastive-Predictive-Coding-PyTorch)
+
 [Spijkervet/contrastive-predictive-coding](https://github.com/Spijkervet/contrastive-predictive-coding)
+
 [facebookresearch/CPC_audio](https://github.com/facebookresearch/CPC_audio)
+
+[clovaai/ClovaCall](https://github.com/clovaai/ClovaCall)
 
 ## Contribution / 기여
 
