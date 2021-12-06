@@ -13,12 +13,21 @@ def audio_loader(audio_file):
     return torchaudio.load(audio_file)
 
 
-def get_speaker_list(file_list):
+def get_librispeech_speaker_list(file_list):
     speaker_list = []
     for index, file in enumerate(file_list):
         filename = file.split("/")[-1]
         filename = filename.split(".")[0]
         speaker_id = filename.split("-")[0] # speaker_id, dir_id, sample_id
+        speaker_list.append(speaker_id)
+    return speaker_list
+
+
+def get_vox_speaker_list(file_list):
+    speaker_list = []
+    for index, file in enumerate(file_list):
+        temp = file.split('/')
+        speaker_id = temp[5][2:]
         speaker_list.append(speaker_id)
     return speaker_list
 
@@ -73,8 +82,31 @@ class NormalWaveformDataset(Dataset):
         return waveform, 0, 0
 
 
-class LibriSpeechFullWaveformDataset(NormalWaveformDataset):
+class VoxWaveformDataset(NormalWaveformDataset):
+    def __init__(self, directory_path, audio_window=20480):
+        NormalWaveformDataset.__init__(self, directory_path, audio_window)
+        self.speaker_list = get_vox_speaker_list(self.file_list)
+        self.speaker_dict = get_speaker_dict(self.speaker_list)
 
+    def __getitem__(self, index):
+        # ../../dataset/vox01/wav/id10977/radm0JQM9aI/00012.wav
+
+        audio_file = self.file_list[index]
+        temp = audio_file.split('/')
+        speaker_id = temp[5][2:]
+        audio_file = audio_file[4:]
+        waveform, sampling_rate = audio_loader("{}".format(audio_file))
+        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
+        assert (
+                sampling_rate == 16000
+        ), "sampling rate is not consistent throughout the dataset"
+        audio_length = waveform.shape[1]
+        random_index = np.random.randint(audio_length - self.audio_window + 1)
+        waveform = waveform[:, random_index: random_index + self.audio_window]
+        return waveform, 0, speaker_id
+
+
+class LibriSpeechFullWaveformDataset(NormalWaveformDataset):
     def __getitem__(self, index):
         audio_file = self.file_list[index]
         # audio_file = audio_file[4:]
@@ -103,7 +135,7 @@ class LibriSpeechWaveformDataset(Dataset):
         # strip() 함수를 사용해서 뒤에 개행을 제거
         self.file_list = [x.strip() for x in id_data.readlines()]
         id_data.close()
-        self.speaker_list = get_speaker_list(self.file_list)
+        self.speaker_list = get_librispeech_speaker_list(self.file_list)
         self.speaker_dict = get_speaker_dict(self.speaker_list)
         _, self.speaker_align = get_speaker_align(self.file_list)
 
@@ -144,6 +176,11 @@ def get_dataloader(config, mode='train'):
         )
     elif config['dataset_type'] == 'LibriSpeechFullWaveformDataset':
         dataset = LibriSpeechFullWaveformDataset(
+            directory_path=config['{}_dataset'.format(mode)],
+            audio_window=config['audio_window'],
+        )
+    elif config['dataset_type'] == 'VoxWaveformDataset':
+        dataset = VoxWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
