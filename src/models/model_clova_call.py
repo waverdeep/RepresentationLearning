@@ -84,8 +84,7 @@ class EncoderRNN(nn.Module):
         """
 
         output_lengths = self.get_seq_lens(input_lengths)
-
-        x = input_var  # (B,1,D,T)
+        x = input_var.cuda()  # (B,1,D,T)
         x, _ = self.conv(x, output_lengths)  # (B, C, D, T)
 
         x_size = x.size()
