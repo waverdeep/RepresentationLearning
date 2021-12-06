@@ -24,8 +24,6 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-import torch.optim as optim
 
 import Levenshtein as Lev
 
@@ -33,6 +31,16 @@ import src.utils.interface_label_loader as label_loader
 from src.data.dataset_clova_call import AudioDataLoader, SpectrogramDataset, BucketingSampler
 
 from src.models.model_clova_call import EncoderRNN, DecoderRNN, Seq2Seq
+import src.utils.interface_tensorboard as tensorboard
+import train as train_tool
+
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+random_seed = 777
+torch.manual_seed(random_seed)
+# torch.backends.cudnn.deterministic = True # 연산 속도가 느려질 수 있음
+torch.backends.cudnn.benchmark = False
+np.random.seed(random_seed)
+random.seed(random_seed)
 
 char2index = dict()
 index2char = dict()
@@ -91,7 +99,7 @@ def get_distance(ref_labels, hyp_labels):
 
 
 def train(model, data_loader, criterion, optimizer, device, epoch, train_sampler, max_norm=400,
-          teacher_forcing_ratio=1):
+          teacher_forcing_ratio=1, writer=None):
     total_loss = 0.
     total_num = 0
     total_dist = 0
@@ -131,15 +139,22 @@ def train(model, data_loader, criterion, optimizer, device, epoch, train_sampler
 
         total_sent_num += target.size(0)
 
-        print('Epoch: [{0}][{1}/{2}]\t'
-              'Loss {loss:.4f}\t'
-              'Cer {cer:.4f}'.format(
-            (epoch + 1), (i + 1), len(train_sampler), loss=loss, cer=cer))
+        # print('Epoch: [{0}][{1}/{2}]\t'
+        #       'Loss {loss:.4f}\t'
+        #       'Cer {cer:.4f}'.format(
+        #     (epoch + 1), (i + 1), len(train_sampler), loss=loss, cer=cer))
+        writer.add_scalar('Loss/train_step', loss, epoch * len(data_loader) + i)
+        writer.add_scalar('CER/train_step', cer, epoch * len(data_loader) + i)
+
+    aver_loss = total_loss / total_num
+    aver_cer = float(total_dist / total_length) * 100
+    writer.add_scalar('Loss/train', aver_loss, epoch)
+    writer.add_scalar('CER/train', aver_cer, epoch)
 
     return total_loss / total_num, (total_dist / total_length) * 100
 
 
-def evaluate(model, data_loader, criterion, device, save_output=False):
+def evaluate(epoch, model, data_loader, criterion, device, writer, save_output=False):
     total_loss = 0.
     total_num = 0
     total_dist = 0
@@ -177,8 +192,13 @@ def evaluate(model, data_loader, criterion, device, save_output=False):
                 transcripts_list += transcripts
             total_sent_num += target.size(0)
 
+            writer.add_scalar('Loss/test_step', loss, epoch * len(data_loader) + i)
+            writer.add_scalar('CER/test_step', cer, epoch * len(data_loader) + i)
+
     aver_loss = total_loss / total_num
     aver_cer = float(total_dist / total_length) * 100
+    writer.add_scalar('Loss/test', aver_loss, epoch)
+    writer.add_scalar('CER/test', aver_cer, epoch)
     return aver_loss, aver_cer, transcripts_list
 
 
@@ -193,11 +213,11 @@ def main():
     parser.add_argument('--model-name', type=str, default='LAS')
     # Dataset
     parser.add_argument('--train-file', type=str,
-                        help='data list about train dataset', default='data/ClovaCall/train_ClovaCall.json')
+                        help='data list about train dataset', default='./dataset/clovacall_data/train_ClovaCall.json')
     parser.add_argument('--test-file-list', nargs='*',
-                        help='data list about test dataset', default=['data/ClovaCall/test_ClovCall.json'])
-    parser.add_argument('--labels-path', default='data/kor_syllable.json', help='Contains large characters over korean')
-    parser.add_argument('--dataset-path', default='data/ClovaCall/clean', help='Target dataset path')
+                        help='data list about test dataset', default=['./dataset/clovacall_data/test_ClovaCall.json'])
+    parser.add_argument('--labels-path', default='dataset/clovacall_data/kor_syllable.json', help='Contains large characters over korean')
+    parser.add_argument('--dataset-path', default='dataset/clovacall_data/wavs', help='Target dataset path')
     # Hyperparameters
     parser.add_argument('--rnn-type', default='lstm', help='Type of the RNN. rnn|gru|lstm are supported')
     parser.add_argument('--encoder_layers', type=int, default=3, help='number of layers of model (default: 3)')
@@ -207,10 +227,10 @@ def main():
     parser.add_argument('--dropout', type=float, default=0.3, help='Dropout rate in training (default: 0.3)')
     parser.add_argument('--no-bidirectional', dest='bidirectional', action='store_false', default=True,
                         help='Turn off bi-directional RNNs, introduces lookahead convolution')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size in training (default: 32)')
-    parser.add_argument('--num_workers', type=int, default=4, help='Number of workers in dataset loader (default: 4)')
+    parser.add_argument('--batch_size', type=int, default=64, help='Batch size in training (default: 32)')
+    parser.add_argument('--num_workers', type=int, default=16, help='Number of workers in dataset loader (default: 4)')
     parser.add_argument('--num_gpu', type=int, default=1, help='Number of gpus (default: 1)')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of max epochs in training (default: 100)')
+    parser.add_argument('--epochs', type=int, default=300, help='Number of max epochs in training (default: 100)')
     parser.add_argument('--lr', type=float, default=3e-4, help='Learning rate (default: 3e-4)')
     parser.add_argument('--learning-anneal', default=1.1, type=float, help='Annealing learning rate every epoch')
     parser.add_argument('--teacher_forcing', type=float, default=1.0,
@@ -226,7 +246,7 @@ def main():
     parser.add_argument('--model-path', default='models/las_final.pth', help='Location to save best validation model')
     parser.add_argument('--log-path', default='log/', help='path to predict log about valid and test dataset')
     parser.add_argument('--cuda', action='store_true', default=False, help='disables CUDA training')
-    parser.add_argument('--seed', type=int, default=123456, help='random seed (default: 123456)')
+    parser.add_argument('--seed', type=int, default=777, help='random seed (default: 123456)')
     parser.add_argument('--mode', type=str, default='train', help='Train or Test')
     parser.add_argument('--load-model', action='store_true', default=False, help='Load model')
     parser.add_argument('--finetune', dest='finetune', action='store_true', default=False,
@@ -237,6 +257,9 @@ def main():
     torch.cuda.manual_seed_all(args.seed)
     np.random.seed(args.seed)
     random.seed(args.seed)
+
+    timestamp = train_tool.setup_timestamp()
+    writer = tensorboard.set_tensorboard_writer("./runs/{}-{}".format("ClovaCall_baseline", timestamp))
 
     char2index, index2char = label_loader.load_label_json(args.labels_path)
     SOS_token = char2index['<s>']
@@ -325,7 +348,8 @@ def main():
     if args.mode != "train":
         for test_file in args.test_file_list:
             test_loader = testLoader_dict[test_file]
-            test_loss, test_cer, transcripts_list = evaluate(model, test_loader, criterion, device, save_output=True)
+            test_loss, test_cer, transcripts_list = evaluate(model, test_loader, criterion, device, writer,
+                                                             save_output=True)
 
             for line in transcripts_list:
                 print(line)
@@ -336,16 +360,19 @@ def main():
         begin_epoch = 0
 
         for epoch in range(begin_epoch, args.epochs):
-            train_loss, train_cer = train(train_model, train_loader, criterion, optimizer, device, epoch, train_sampler,
-                                          args.max_norm, args.teacher_forcing)
+            train_loss, train_cer = train(train_model, train_loader, criterion, optimizer, device=device, epoch=epoch,
+                                          train_sampler=train_sampler,
+                                          max_norm=args.max_norm, teacher_forcing_ratio=args.teacher_forcing,
+                                          writer=writer)
 
             cer_list = []
             for test_file in args.test_file_list:
                 test_loader = testLoader_dict[test_file]
-                test_loss, test_cer, _ = evaluate(model, test_loader, criterion, device, save_output=False)
+                test_loss, test_cer, _ = evaluate(epoch, model, test_loader, criterion, device=device, writer=writer,
+                                                  save_output=True)
                 test_log = 'Test({name}) Summary Epoch: [{0}]\tAverage Loss {loss:.3f}\tAverage CER {cer:.3f}\t'.format(
                     epoch + 1, name=test_file, loss=test_loss, cer=test_cer)
-                print(test_log)
+                # print(test_log)
 
                 cer_list.append(test_cer)
 
@@ -358,12 +385,12 @@ def main():
                 torch.save(state, args.model_path)
                 best_cer = cer_list[0]
 
-            print("Shuffling batches...")
+            # print("Shuffling batches...")
             train_sampler.shuffle(epoch)
 
             for g in optimizer.param_groups:
                 g['lr'] = g['lr'] / args.learning_anneal
-            print('Learning rate annealed to: {lr:.6f}'.format(lr=g['lr']))
+            # print('Learning rate annealed to: {lr:.6f}'.format(lr=g['lr']))
 
 
 if __name__ == "__main__":
