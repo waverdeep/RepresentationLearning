@@ -11,7 +11,7 @@ import src.data.dataset as dataset
 import src.models.model as model_pack
 import src.optimizers.optimizer as optimizers
 import src.utils.interface_tensorboard as tensorboard
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 random_seed = 777
 torch.manual_seed(random_seed)
 # torch.backends.cudnn.deterministic = True # 연산 속도가 느려질 수 있음
@@ -27,7 +27,7 @@ def main():
     parser.add_argument("--apex", default=False, type=bool)
     parser.add_argument("--local_rank", default=0, type=int)
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_SpeakerClassification_training02.json')
+                        default='./config/config_SpeakerClassification_training05.json')
     args = parser.parse_args()
     now = datetime.now()
     timestamp = "{}_{}_{}_{}_{}_{}".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
@@ -50,6 +50,7 @@ def main():
 
     # setup speaker classfication label
     speaker_dict = train_dataset.speaker_dict
+    format_logger.info("speaker_num: {}".format(len(speaker_dict.keys())))
 
     format_logger.info("load_model ...")
     pretext_model = model_pack.load_model(config, config['pretext_model_name'], config['pretext_checkpoint'])
@@ -106,6 +107,9 @@ def train(config, writer, epoch, pretext_model, downstream_model, train_loader, 
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     total_accuracy = 0.0
+    format_logger.info("[ {}/{} epoch train result: [ average acc: {}/ average loss: {} ]".format(
+        epoch, config['epoch'], total_accuracy, total_loss
+    ))
     for batch_idx, (waveform, filename, speaker_id) in enumerate(train_loader):
         targets = make_target(speaker_id, speaker_dict)
         if config['use_cuda']:
@@ -146,6 +150,11 @@ def test(config, writer, epoch, pretext_model, downstream_model, test_loader, op
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     total_accuracy = 0.0
+
+    format_logger.info("[ {}/{} epoch test result: [ average acc: {}/ average loss: {} ]".format(
+        epoch, config['epoch'], total_accuracy, total_loss
+    ))
+
     with torch.no_grad():
         for batch_idx, (waveform, filename, speaker_id) in enumerate(test_loader):
             targets = make_target(speaker_id, speaker_dict)
