@@ -7,164 +7,7 @@ from torch.utils import data
 from collections import defaultdict
 from src.utils import interface_file_io
 torchaudio.set_audio_backend("sox_io")
-
-
-def audio_loader(audio_file):
-    return torchaudio.load(audio_file)
-
-
-def get_librispeech_speaker_list(file_list):
-    speaker_list = []
-    for index, file in enumerate(file_list):
-        filename = file.split("/")[-1]
-        filename = filename.split(".")[0]
-        speaker_id = filename.split("-")[0] # speaker_id, dir_id, sample_id
-        speaker_list.append(speaker_id)
-    return speaker_list
-
-
-def get_vox_speaker_list(file_list):
-    speaker_list = []
-    for index, file in enumerate(file_list):
-        temp = file.split('/')
-        speaker_id = temp[5][2:]
-        speaker_list.append(speaker_id)
-    return speaker_list
-
-
-def get_speaker_dict(speaker_list):
-    speaker_id_dict = {}
-    for idx, key in enumerate(sorted(list(set(speaker_list)))):
-        speaker_id_dict[key] = idx
-    return speaker_id_dict
-
-
-def get_speaker_align(file_list):
-    item_list = []
-    speaker_align = defaultdict(list)
-    index = 0
-    for index, file in enumerate(file_list):
-        filename = file.split("/")[-1]
-        filename = filename.split(".")[0]
-        speaker_id, dir_id, sample_id = filename.split("-")
-        item_list.append((speaker_id, dir_id, sample_id))
-        speaker_align[speaker_id].append(index)
-        index += 1
-
-    return item_list, speaker_align
-
-
-class NormalWaveformDataset(Dataset):
-    def __init__(self, directory_path, audio_window=20480):
-        self.directory_path = directory_path
-        self.audio_window = audio_window
-
-        self.file_list = []
-        id_data = open(self.directory_path, 'r')
-        # strip() 함수를 사용해서 뒤에 개행을 제거
-        self.file_list = [x.strip() for x in id_data.readlines()]
-        id_data.close()
-
-    def __len__(self):
-        return len(self.file_list)
-
-    def __getitem__(self, index):
-        audio_file = self.file_list[index]
-        audio_file = audio_file[4:]
-        waveform, sampling_rate = audio_loader("{}".format(audio_file))
-        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
-        assert (
-                sampling_rate == 16000
-        ), "sampling rate is not consistent throughout the dataset"
-        audio_length = waveform.shape[1]
-        random_index = np.random.randint(audio_length - self.audio_window + 1)
-        waveform = waveform[:, random_index: random_index + self.audio_window]
-        return waveform, 0, 0
-
-
-class VoxWaveformDataset(NormalWaveformDataset):
-    def __init__(self, directory_path, audio_window=20480):
-        NormalWaveformDataset.__init__(self, directory_path, audio_window)
-        self.speaker_list = get_vox_speaker_list(self.file_list)
-        self.speaker_dict = get_speaker_dict(self.speaker_list)
-
-    def __getitem__(self, index):
-        # ../../dataset/vox01/wav/id10977/radm0JQM9aI/00012.wav
-
-        audio_file = self.file_list[index]
-        temp = audio_file.split('/')
-        speaker_id = temp[5][2:]
-        audio_file = audio_file[4:]
-        waveform, sampling_rate = audio_loader("{}".format(audio_file))
-        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
-        assert (
-                sampling_rate == 16000
-        ), "sampling rate is not consistent throughout the dataset"
-        audio_length = waveform.shape[1]
-        random_index = np.random.randint(audio_length - self.audio_window + 1)
-        waveform = waveform[:, random_index: random_index + self.audio_window]
-        return waveform, 0, speaker_id
-
-
-class LibriSpeechFullWaveformDataset(NormalWaveformDataset):
-    def __getitem__(self, index):
-        audio_file = self.file_list[index]
-        # audio_file = audio_file[4:]
-        waveform, sampling_rate = audio_loader("{}".format(audio_file))
-        filename = audio_file.split("/")[-1]
-        filename = filename.split(".")[0]  # speaker_id, dir_id, sample_id
-        speaker_id = filename.split("-")[0]
-
-        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
-        assert (
-                sampling_rate == 16000
-        ), "sampling rate is not consistent throughout the dataset"
-        # discard last part that is not a full 10ms
-        max_length = waveform.size(1) // 160 * 160
-        waveform = waveform[:max_length]
-        return waveform, str(filename), str(speaker_id)
-
-
-class LibriSpeechWaveformDataset(Dataset):
-    def __init__(self, directory_path, audio_window=20480):
-        self.directory_path = directory_path
-        self.audio_window = audio_window
-
-        self.file_list = []
-        id_data = open(self.directory_path, 'r')
-        # strip() 함수를 사용해서 뒤에 개행을 제거
-        self.file_list = [x.strip() for x in id_data.readlines()]
-        id_data.close()
-        self.speaker_list = get_librispeech_speaker_list(self.file_list)
-        self.speaker_dict = get_speaker_dict(self.speaker_list)
-        _, self.speaker_align = get_speaker_align(self.file_list)
-
-    def __len__(self):
-        return len(self.file_list)
-
-    def __getitem__(self, index):
-        audio_file = self.file_list[index]
-        audio_file = audio_file[4:]
-        waveform, sampling_rate = audio_loader("{}".format(audio_file))
-        filename = audio_file.split("/")[-1]
-        filename = filename.split(".")[0] # speaker_id, dir_id, sample_id
-        speaker_id = filename.split("-")[0]
-
-        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
-        assert (
-            sampling_rate == 16000
-        ), "sampling rate is not consistent throughout the dataset"
-        audio_length = waveform.shape[1]
-        random_index = np.random.randint(audio_length - self.audio_window + 1)
-        waveform = waveform[:, random_index: random_index+self.audio_window]
-        return waveform, str(filename), str(speaker_id)
-
-    def get_audio_by_speaker(self, speaker_id, batch_size):
-        batch_size = min(len(self.speaker_align[speaker_id]), batch_size)
-        batch = torch.zeros(batch_size, 1, self.audio_window)
-        for index in range(batch_size):
-            batch[index, 0, :], _, _ = self.__getitem__(self.speaker_align[speaker_id][index])
-        return batch
+import src.data.dataset_spectrogram as dataset_spectrogram
 
 
 def get_dataloader(config, mode='train'):
@@ -181,6 +24,16 @@ def get_dataloader(config, mode='train'):
         )
     elif config['dataset_type'] == 'VoxWaveformDataset':
         dataset = VoxWaveformDataset(
+            directory_path=config['{}_dataset'.format(mode)],
+            audio_window=config['audio_window'],
+        )
+    elif config['dataset_type'] == "CompetitionWaveformDataset":
+        dataset = CompetitionWaveformDataset(
+            directory_path=config['{}_dataset'.format(mode)],
+            audio_window=config['audio_window'],
+        )
+    elif config['dataset_type'] == "CompetitionMFCCDataset":
+        dataset = dataset_spectrogram.CompetitionMFCCDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
