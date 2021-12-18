@@ -1,44 +1,42 @@
-import torch
 import torchaudio
-import torchaudio.transforms as transforms
-import numpy as np
-from torch.utils.data import Dataset
 from torch.utils import data
-from collections import defaultdict
-from src.utils import interface_file_io
+import src.data.dataset_librispeech as librispeech
+import src.data.dataset_voxceleb as voxceleb
+import src.data.dataset_competition as competition
+import src.data.dataset_normal as normal
 torchaudio.set_audio_backend("sox_io")
-import src.data.dataset_spectrogram as dataset_spectrogram
 
 
 def get_dataloader(config, mode='train'):
     dataset = None
     if config['dataset_type'] == 'LibriSpeechWaveformDataset':
-        dataset = LibriSpeechWaveformDataset(
+        dataset = librispeech.LibriSpeechWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
     elif config['dataset_type'] == 'LibriSpeechFullWaveformDataset':
-        dataset = LibriSpeechFullWaveformDataset(
+        dataset = librispeech.LibriSpeechWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
+            full_audio=True,
         )
     elif config['dataset_type'] == 'VoxWaveformDataset':
-        dataset = VoxWaveformDataset(
+        dataset = voxceleb.VoxWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
     elif config['dataset_type'] == "CompetitionWaveformDataset":
-        dataset = CompetitionWaveformDataset(
+        dataset = competition.CompetitionWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
     elif config['dataset_type'] == "CompetitionMFCCDataset":
-        dataset = dataset_spectrogram.CompetitionMFCCDataset(
+        dataset = competition.CompetitionMFCCDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
     else:
-        dataset = NormalWaveformDataset(
+        dataset = normal.NormalWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
