@@ -1,5 +1,6 @@
 import src.data.dataset_tool_speaker as speaker_tool
 import src.utils.interface_audio_io as audio_io
+import src.data.dataset_normal as normal
 
 
 def get_vox_speaker_list(file_list):
@@ -11,9 +12,9 @@ def get_vox_speaker_list(file_list):
     return speaker_list
 
 
-class VoxWaveformDataset(speaker_tool.NormalWaveformDataset):
+class VoxWaveformDataset(normal.NormalWaveformDataset):
     def __init__(self, directory_path, audio_window=20480, full_audio=False):
-        speaker_tool.NormalWaveformDataset.__init__(self, directory_path, audio_window)
+        normal.NormalWaveformDataset.__init__(self, directory_path, audio_window)
         self.audio_window = audio_window
         self.full_audio = full_audio
         self.speaker_list = get_vox_speaker_list(self.file_list)
@@ -31,5 +32,5 @@ class VoxWaveformDataset(speaker_tool.NormalWaveformDataset):
                 sampling_rate == 16000
         ), "sampling rate is not consistent throughout the dataset"
         if not self.full_audio:
-            waveform = speaker_tool.random_cutoff(waveform, self.audio_window)
+            waveform = audio_io.random_cutoff(waveform, self.audio_window)
         return waveform, 0, speaker_id
