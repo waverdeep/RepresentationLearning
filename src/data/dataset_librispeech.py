@@ -45,10 +45,10 @@ class LibriSpeechWaveformDataset(Dataset):
         ), "sampling rate is not consistent throughout the dataset"
 
         if self.auto_trim:
-            waveform = speaker_tool.audio_auto_trim(waveform, self.vad, self.audio_window)
+            waveform = audio_io.audio_auto_trim(waveform, self.vad, self.audio_window)
 
         if not self.full_audio:
-            waveform = speaker_tool.random_cutoff(waveform, self.audio_window)
+            waveform = audio_io.random_cutoff(waveform, self.audio_window)
         return waveform, str(filename), str(speaker_id)
 
     def get_audio_by_speaker(self, speaker_id, batch_size):
