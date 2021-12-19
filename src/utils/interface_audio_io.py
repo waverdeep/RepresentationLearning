@@ -4,7 +4,38 @@ import src.utils.interface_file_io as io
 import librosa
 import wave
 import multiprocessing
-import interface_multiprocessing as mi
+import src.utils.interface_multiprocessing as mi
+import torchaudio
+import numpy as np
+import torch
+torchaudio.set_audio_backend("sox_io")
+
+
+def audio_loader(audio_file):
+    return torchaudio.load(audio_file)
+
+
+def random_cutoff(waveform, audio_window):
+    audio_length = waveform.shape[1]
+    random_index = np.random.randint(audio_length - audio_window + 1)
+    cutoff_waveform = waveform[:, random_index: random_index + audio_window]
+    return cutoff_waveform
+
+
+def audio_auto_trim(waveform, vad, audio_window=None):
+    waveform = vad(waveform)
+    waveform = torch.flip(waveform, [0, 1])
+    waveform = vad(waveform)
+    waveform = torch.flip(waveform, [0, 1])
+
+    if audio_window is not None:
+        while True:
+            audio_length = waveform.shape[1]
+            if audio_length < audio_window:
+                waveform = torch.cat((waveform, waveform), 1)
+            else:
+                break
+    return waveform
 
 
 def resampling_audio(file, original_sampling_rate=44100, resampling_rate=16000):
