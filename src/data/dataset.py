@@ -9,28 +9,29 @@ torchaudio.set_audio_backend("sox_io")
 
 def get_dataloader(config, mode='train'):
     dataset = None
-    if config['dataset_type'] == 'LibriSpeechWaveformDataset':
+    dataset_type = config['dataset_type']
+    if dataset_type == 'LibriSpeechWaveformDataset':
         dataset = librispeech.LibriSpeechWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
-    elif config['dataset_type'] == 'LibriSpeechFullWaveformDataset':
+    elif dataset_type == 'LibriSpeechFullWaveformDataset':
         dataset = librispeech.LibriSpeechWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
             full_audio=True,
         )
-    elif config['dataset_type'] == 'VoxWaveformDataset':
+    elif dataset_type == 'VoxWaveformDataset':
         dataset = voxceleb.VoxWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
-    elif config['dataset_type'] == "CompetitionWaveformDataset":
+    elif dataset_type == "CompetitionWaveformDataset":
         dataset = competition.CompetitionWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
-    elif config['dataset_type'] == "CompetitionMFCCDataset":
+    elif dataset_type == "CompetitionMFCCDataset":
         dataset = competition.CompetitionMFCCDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
@@ -40,6 +41,7 @@ def get_dataloader(config, mode='train'):
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
+
     dataloader = data.DataLoader(
         dataset=dataset,
         batch_size=config['batch_size'],
@@ -47,6 +49,7 @@ def get_dataloader(config, mode='train'):
         num_workers=config['num_workers'],
         pin_memory=config['pin_memory'],
     )
+
     return dataloader, dataset
 
 
