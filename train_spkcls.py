@@ -11,7 +11,7 @@ import src.data.dataset as dataset
 import src.models.model as model_pack
 import src.optimizers.optimizer as optimizers
 import src.utils.interface_tensorboard as tensorboard
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 random_seed = 777
 torch.manual_seed(random_seed)
 # torch.backends.cudnn.deterministic = True # 연산 속도가 느려질 수 있음
@@ -27,7 +27,7 @@ def main():
     parser.add_argument("--apex", default=False, type=bool)
     parser.add_argument("--local_rank", default=0, type=int)
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_SpeakerClassification_training05.json')
+                        default='./config/config_SpeakerClassification_comp_training02.json')
     args = parser.parse_args()
     now = datetime.now()
     timestamp = "{}_{}_{}_{}_{}_{}".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
@@ -119,7 +119,7 @@ def train(config, writer, epoch, pretext_model, downstream_model, train_loader, 
             loss, accuracy, z, c = pretext_model(data)
         # targets = torch.nn.functional.one_hot(targets, num_classes=251)
         c = c.detach()
-        preds = downstream_model(c)
+        embeds, preds = downstream_model(c)
         loss = criterion(preds, targets)
 
         downstream_model.zero_grad()
@@ -165,7 +165,7 @@ def test(config, writer, epoch, pretext_model, downstream_model, test_loader, op
             loss, accuracy, z, c = pretext_model(data)
             # targets = torch.nn.functional.one_hot(targets, num_classes=251)
             c = c.detach()
-            preds = downstream_model(c)
+            embeds, preds = downstream_model(c)
             loss = criterion(preds, targets)
 
             accuracy = torch.zeros(1)
