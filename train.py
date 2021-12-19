@@ -52,6 +52,20 @@ def setup_distributed_learning(config, format_logger):
     pass
 
 
+def make_target(speaker_id, speaker_dict):
+    targets = torch.zeros(len(speaker_id)).long()
+    for idx in range(len(speaker_id)):
+        targets[idx] = speaker_dict[speaker_id[idx]]
+    return targets
 
 
+def save_checkpoint(config, model, optimizer, loss, epoch, format_logger, mode="best", date=""):
+    if mode == "best":
+        file_path = os.path.join(config['checkpoint_save_directory_path'],
+                                 config['checkpoint_file_name'] + "-model-best-{}.pt".format(date))
 
+    torch.save({
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "epoch": epoch, "loss": loss}, file_path)
+    format_logger.info("saved best checkpoint ... ")

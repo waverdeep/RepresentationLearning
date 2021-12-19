@@ -12,7 +12,7 @@ import src.utils.interface_tensorboard as tensorboard
 from apex.parallel import DistributedDataParallel as DDP
 from datetime import datetime
 import src.utils.interface_plot as plots
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 random_seed = 777
 torch.manual_seed(random_seed)
 # torch.backends.cudnn.deterministic = True # 연산 속도가 느려질 수 있음
@@ -28,7 +28,7 @@ def main():
     parser.add_argument("--apex", default=False, type=bool)
     parser.add_argument("--local_rank", default=0, type=int)
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_CPC_baseline_500_training01-batch32.json')
+                        default='./config/config_GCPC_training01_baseline-batch32.json')
     args = parser.parse_args()
 
     now = datetime.now()
@@ -106,12 +106,11 @@ def main():
     num_of_epoch = config['epoch']
     for epoch in range(num_of_epoch):
         epoch = epoch + 1
-        # speaker_tsne(config, model, train_dataset, epoch, writer)
         format_logger.info("start train ... [ {}/{} epoch ]".format(epoch, num_of_epoch))
         train(config, writer, epoch, model, train_loader, optimizer, format_logger)
         format_logger.info("start test ... [ {}/{} epoch ]".format(epoch, num_of_epoch))
         test_accuracy, test_loss = test(config, writer, epoch, model, test_loader, format_logger)
-
+        # speaker_tsne(config, model, train_dataset, epoch, writer)
 
         if test_accuracy > best_accuracy:
             best_accuracy = test_accuracy
