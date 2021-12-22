@@ -1,4 +1,4 @@
-import train as train_tool
+import src.utils.interface_train_tool as train_tool
 import src.utils.interface_logger as logger
 import src.models.model as model_pack
 import src.data.dataset as dataset

@@ -27,7 +27,7 @@ def main():
     parser.add_argument("--apex", default=False, type=bool)
     parser.add_argument("--local_rank", default=0, type=int)
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_SpeakerClassification_comp_training02.json')
+                        default='./config/config_SpeakerClassification_comp_training03.json')
     args = parser.parse_args()
     now = datetime.now()
     timestamp = "{}_{}_{}_{}_{}_{}".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
@@ -54,7 +54,7 @@ def main():
 
     format_logger.info("load_model ...")
     pretext_model = model_pack.load_model(config, config['pretext_model_name'], config['pretext_checkpoint'])
-    downstream_model = model_pack.load_model(config, config['downstream_model_name'])
+    downstream_model = model_pack.load_model(config, config['downstream_model_name'], config['downstream_checkpoint'])
 
     optimizer = optimizers.get_optimizer(downstream_model.parameters(), config)
 
@@ -136,6 +136,11 @@ def train(config, writer, epoch, pretext_model, downstream_model, train_loader, 
         writer.add_scalar('Accuracy/train_step', accuracy * 100, (epoch - 1) * len(train_loader) + batch_idx)
         total_loss += len(data) * loss
         total_accuracy += len(data) * accuracy
+
+        if batch_idx % 10 == 0:
+            save_checkpoint(config=config, model=downstream_model, optimizer=optimizer,
+                            loss=None, epoch=None, format_logger=format_logger, mode="best",
+                            date='{}'.format(123456789))
 
     total_loss /= len(train_loader.dataset)  # average loss
     total_accuracy /= len(train_loader.dataset)  # average acc
