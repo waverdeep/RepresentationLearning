@@ -2,7 +2,6 @@ import torchaudio
 from torch.utils import data
 import src.data.dataset_librispeech as librispeech
 import src.data.dataset_voxceleb as voxceleb
-import src.data.dataset_competition as competition
 import src.data.dataset_normal as normal
 torchaudio.set_audio_backend("sox_io")
 
@@ -23,16 +22,6 @@ def get_dataloader(config, mode='train'):
         )
     elif dataset_type == 'VoxWaveformDataset':
         dataset = voxceleb.VoxWaveformDataset(
-            directory_path=config['{}_dataset'.format(mode)],
-            audio_window=config['audio_window'],
-        )
-    elif dataset_type == "CompetitionWaveformDataset":
-        dataset = competition.CompetitionWaveformDataset(
-            directory_path=config['{}_dataset'.format(mode)],
-            audio_window=config['audio_window'],
-        )
-    elif dataset_type == "CompetitionMFCCDataset":
-        dataset = competition.CompetitionMFCCDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )

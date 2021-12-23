@@ -11,51 +11,6 @@ import warnings
 warnings.filterwarnings(action='ignore')
 
 
-class CompetitionInferenceWaveform(Dataset):
-    def __init__(self, file_list, audio_window=20480, full_audio=False):
-        self.file_list = file_list
-        self.audio_window = audio_window
-        self.full_audio = full_audio
-        self.vad = T.Vad(16000)
-
-    def __len__(self):
-        return len(self.file_list)
-
-    def __getitem__(self, index):
-        audio_file = self.file_list[index]
-        waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
-        assert (
-                sampling_rate == 16000
-        ), "sampling rate is not consistent throughout the dataset"
-
-        # waveform = audio_io.audio_auto_trim(waveform, vad=self.vad, audio_window=self.audio_window)
-        if self.audio_window is not None:
-            while True:
-                audio_length = waveform.shape[1]
-                if audio_length < self.audio_window:
-                    waveform = torch.cat((waveform, waveform), 1)
-                else:
-                    break
-        if not self.full_audio:
-            waveform = audio_io.random_cutoff(waveform, audio_window=self.audio_window)
-
-        return waveform, index, 0
-
-
-def load_waveform(audio_file, full_audio=False, audio_window=20480):
-    vad = T.Vad(16000)
-    waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
-    assert (
-            sampling_rate == 16000
-    ), "sampling rate is not consistent throughout the dataset"
-
-    # waveform = audio_io.audio_auto_trim(waveform, vad=vad, audio_window=audio_window)
-
-    if not full_audio:
-        waveform = audio_io.random_cutoff(waveform, audio_window=audio_window)
-    return waveform
-
-
 class CompetitionWaveformDataset(normal.NormalWaveformDataset):
     def __init__(self, directory_path, audio_window=20480, full_audio=False):
         self.directory_path = directory_path
