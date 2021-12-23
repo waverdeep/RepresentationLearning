@@ -3,22 +3,17 @@ import json
 import random
 import numpy as np
 import os
+from datetime import datetime
 import torch.cuda
 import src.optimizers.optimizer as optimizers
 import src.data.dataset as dataset
 import src.models.model as model_pack
 import src.utils.interface_logger as logger
 import src.utils.interface_tensorboard as tensorboard
-from apex.parallel import DistributedDataParallel as DDP
-from datetime import datetime
 import src.utils.interface_plot as plots
+import src.utils.interface_train_tool as train_tool
+from apex.parallel import DistributedDataParallel as DDP
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-random_seed = 777
-torch.manual_seed(random_seed)
-# torch.backends.cudnn.deterministic = True # 연산 속도가 느려질 수 있음
-torch.backends.cudnn.benchmark = False
-np.random.seed(random_seed)
-random.seed(random_seed)
 
 
 def main():
@@ -28,19 +23,18 @@ def main():
     parser.add_argument("--apex", default=False, type=bool)
     parser.add_argument("--local_rank", default=0, type=int)
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_GCPC_training01_baseline-batch32.json')
+                        default='./config/config_pretext-CPC(baseline)-kspon-training01-batch64.json')
     args = parser.parse_args()
 
-    now = datetime.now()
+    train_tool.setup_seed(random_seed=777)
+    now = train_tool.setup_timestamp()
+
     # read configuration file
     with open(args.configuration, 'r') as configuration:
         config = json.load(configuration)
 
     # create logger
-    format_logger = logger.setup_log(save_filename="{}-{}_{}_{}_{}_{}_{}.log".format(config['log_filename'],
-                                                                                        now.year, now.month, now.day,
-                                                                                        now.hour, now.minute,
-                                                                                        now.second))
+    format_logger = logger.setup_log(save_filename="{}-{}.log".format(config['log_filename'], now))
 
     # gpu check
     format_logger.info("GPU: {}".format(torch.cuda.is_available()))
@@ -69,7 +63,7 @@ def main():
 
     # load model
     format_logger.info("load_model ...")
-    model = model_pack.load_model(config, model_name="CPCModel")
+    model = model_pack.load_model(config, model_name=config['pretext_model_name'])
 
     # if gpu available: load gpu
     if config['use_cuda']:
@@ -85,9 +79,7 @@ def main():
 
     # setup tensorboard
     writer = tensorboard.set_tensorboard_writer(
-        "{}-{}_{}_{}_{}_{}_{}".format(config['tensorboard_writer_name'],
-                                      now.year, now.month, now.day, now.hour,
-                                      now.minute, now.second)
+        "{}-{}".format(config['tensorboard_writer_name'], now)
     )
 
     # inspect model
@@ -117,8 +109,7 @@ def main():
             best_epoch = epoch
             save_checkpoint(config=config, model=model, optimizer=optimizer,
                             loss=test_loss, epoch=best_epoch, format_logger=format_logger, mode="best",
-                            date='{}_{}_{}_{}_{}_{}'.format(now.year, now.month, now.day, now.hour,
-                                                            now.minute, now.second))
+                            date='{}'.format(now))
 
     tensorboard.close_tensorboard_writer(writer)
 
@@ -127,18 +118,19 @@ def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
     model.train()
     total_loss = 0.0
     total_accuracy = 0.0
-    for batch_idx, (waveform, filename, speaker_id) in enumerate(train_loader):
-        if config['use_cuda']:
-            data = waveform.cuda()
-        loss, accuracy, z, c = model(data)
-        # optimizer.zero_grad()
-        model.zero_grad()
-        loss.backward()
-        optimizer.step()
-        writer.add_scalar('Loss/train_step', loss, (epoch - 1) * len(train_loader) + batch_idx)
-        writer.add_scalar('Accuracy/train_step', accuracy * 100, (epoch - 1) * len(train_loader) + batch_idx)
-        total_loss += len(data) * loss
-        total_accuracy += len(data) * accuracy
+    with torch.autograd.set_detect_anomaly(True):
+        for batch_idx, (waveform, filename, speaker_id) in enumerate(train_loader):
+            if config['use_cuda']:
+                data = waveform.cuda()
+            loss, accuracy, z, c = model(data)
+            # optimizer.zero_grad()
+            model.zero_grad()
+            loss.backward()
+            optimizer.step()
+            writer.add_scalar('Loss/train_step', loss, (epoch - 1) * len(train_loader) + batch_idx)
+            writer.add_scalar('Accuracy/train_step', accuracy * 100, (epoch - 1) * len(train_loader) + batch_idx)
+            total_loss += len(data) * loss
+            total_accuracy += len(data) * accuracy
 
     total_loss /= len(train_loader.dataset)  # average loss
     total_accuracy /= len(train_loader.dataset)  # average acc
@@ -147,6 +139,7 @@ def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
     writer.add_scalar('Accuracy/train', total_accuracy * 100, (epoch - 1))
 
     conv = 0
+    conv_trans = 0
     for idx, layer in enumerate(model.modules()):
         if isinstance(layer, torch.nn.Conv1d):
             writer.add_histogram("Conv/weights-{}".format(conv), layer.weight,
@@ -154,6 +147,14 @@ def train(config, writer, epoch, model, train_loader, optimizer, format_logger):
             writer.add_histogram("Conv/bias-{}".format(conv), layer.bias,
                                  global_step=(epoch - 1) * len(train_loader) + batch_idx)
             conv += 1
+
+        if isinstance(layer, torch.nn.ConvTranspose1d):
+            writer.add_histogram("ConvTrans/weights-{}".format(conv_trans), layer.weight,
+                                 global_step=(epoch - 1) * len(train_loader) + batch_idx)
+            writer.add_histogram("ConvTrans/bias-{}".format(conv_trans), layer.bias,
+                                 global_step=(epoch - 1) * len(train_loader) + batch_idx)
+            conv_trans += 1
+
         if isinstance(layer, torch.nn.GRU):
             writer.add_histogram("GRU/weight_ih_l0",
                                  layer.weight_ih_l0, global_step=(epoch - 1) * len(train_loader) + batch_idx)
