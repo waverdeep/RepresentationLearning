@@ -1,3 +1,4 @@
+import sys
 import torch
 import torch.nn as nn
 import src.models.model_baseline as model_baseline
@@ -18,7 +19,7 @@ class Decoder(nn.Module):
                 nn.Sequential(
                     nn.ConvTranspose1d(in_channels=input_dim, out_channels=hidden_dim,
                                        kernel_size=filter_size, stride=stride),
-                    nn.ReLU(),
+                    nn.ReLU(inplace=False),
                 )
             )
 
@@ -49,16 +50,17 @@ class GenerativeCPCModel(model_baseline.CPCModel):
         return generated_x
 
     def forward(self, x):
-        z, permuted_z, c = self.get_latent_representations(x)
+        z, _, _ = self.get_latent_representations(x)
+        _, permuted_z, c = self.get_latent_representations(x)
         generated_x = self.generative_network(z)
         decoder_loss_output = self.decoder_loss(generated_x, x)
         loss, accuracy = self.loss.get(x, permuted_z, c)
-        loss += decoder_loss_output
-        return loss, accuracy, z, c
+        total_loss = loss + decoder_loss_output
+        return total_loss, accuracy, z, c
 
 
 if __name__ == '__main__':
-    with open('../../config/config_CPC_baseline_training01-batch24.json', 'r') as configuration:
+    with open('../../config/config_pretext-GCPC-kspon-training01-batch64.json', 'r') as configuration:
         config = json.load(configuration)
     model = GenerativeCPCModel(args=config,
                      g_enc_input=1,
@@ -67,6 +69,8 @@ if __name__ == '__main__':
                      filter_sizes=config['filter_sizes'],
                      strides=config['strides'],
                      paddings=config['paddings']).cuda()
+    for idx, layer in enumerate(model.modules()):
+        print(layer)
     test_loss, test_accuracy, test_z, test_c = model(torch.rand(32, 1, 20480).cuda())
     print(test_loss.size())
     print(test_loss)
