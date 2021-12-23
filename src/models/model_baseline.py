@@ -52,7 +52,7 @@ class Encoder(nn.Module):
                 nn.Sequential(
                     nn.Conv1d(in_channels=input_dim, out_channels=hidden_dim,
                               kernel_size=filter_size, stride=stride, padding=padding),
-                    nn.ReLU(),
+                    nn.ReLU(inplace=False),
                 )
             )
             input_dim = hidden_dim
@@ -79,7 +79,7 @@ class AutoRegressive(nn.Module):
 
 
 if __name__ == '__main__':
-    with open('../../config/config_CPC_baseline_training01-batch24.json', 'r') as configuration:
+    with open('../../config/config_pretext-CPC(baseline)-kspon-training01-batch64.json', 'r') as configuration:
         config = json.load(configuration)
     model = CPCModel(args=config,
                      g_enc_input=1,
