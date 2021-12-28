@@ -52,7 +52,7 @@ class Encoder(nn.Module):
                 nn.Sequential(
                     nn.Conv1d(in_channels=input_dim, out_channels=hidden_dim,
                               kernel_size=filter_size, stride=stride, padding=padding),
-                    nn.ReLU(inplace=False),
+                    nn.ReLU(),
                 )
             )
             input_dim = hidden_dim
