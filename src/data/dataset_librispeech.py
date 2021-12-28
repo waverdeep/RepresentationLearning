@@ -4,16 +4,19 @@ from torch.utils.data import Dataset
 import torchaudio.transforms as T
 import src.utils.interface_audio_io as audio_io
 import src.data.dataset_tool_speaker as speaker_tool
+import src.utils.interface_audio_augmentation as audio_augmentation
 torchaudio.set_audio_backend("sox_io")
 
 
 class LibriSpeechWaveformDataset(Dataset):
-    def __init__(self, directory_path, audio_window=20480, sampling_rate=16000, auto_trim=False, full_audio=False):
+    def __init__(self, directory_path, audio_window=20480, sampling_rate=16000, auto_trim=False, full_audio=False,
+                 augmentation=False):
         self.directory_path = directory_path
         self.audio_window = audio_window
         self.sampling_rate = sampling_rate
         self.auto_trim = auto_trim
         self.full_audio = full_audio
+        self.augmentation = augmentation
 
         self.file_list = []
         id_data = open(self.directory_path, 'r')
@@ -47,8 +50,12 @@ class LibriSpeechWaveformDataset(Dataset):
         if self.auto_trim:
             waveform = audio_io.audio_auto_trim(waveform, self.vad, self.audio_window)
 
+        if self.augmentation:
+            waveform = audio_augmentation.audio_augment_baseline(waveform, sampling_rate)
+
         if not self.full_audio:
             waveform = audio_io.random_cutoff(waveform, self.audio_window)
+
         return waveform, str(filename), str(speaker_id)
 
     def get_audio_by_speaker(self, speaker_id, batch_size):

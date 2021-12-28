@@ -13,6 +13,7 @@ def get_dataloader(config, mode='train'):
         dataset = librispeech.LibriSpeechWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
+            augmentation=config['augmentation'],
         )
     elif dataset_type == 'LibriSpeechFullWaveformDataset':
         dataset = librispeech.LibriSpeechWaveformDataset(
