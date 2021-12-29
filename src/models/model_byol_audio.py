@@ -3,18 +3,11 @@ import copy
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
+import src.losses.criterion as criterion
 
 def set_requires_grad(model, requires):
     for parameter in model.parameters():
         parameter.requires_grad = requires
-
-
-def loss_fn(x, y):
-    x = F.normalize(x, dim=-1, p=2)
-    y = F.normalize(y, dim=-1, p=2)
-    return 2 - 2 * (x * y).sum(dim=-1)
 
 
 class BYOL(nn.Module):
@@ -30,14 +23,24 @@ class BYOL(nn.Module):
         self.online_projector = ProjectionNetwork(dimension, hidden_size, projection_size)
         self.online_predictor = PredictionNetwork(projection_size, hidden_size, projection_size)
         # setup target network
+        self.target_encoder = None
+        self.target_projector = None
+        # loss function
+        self.criterion = criterion.byol_criterion
+
+    def get_target_ecnoder(self):
         self.target_encoder = copy.deepcopy(self.online_encoder)
+        set_requires_grad(self.target_encoder, requires=False)
+
+    def get_target_projector(self):
         self.target_projector = copy.deepcopy(self.online_projector)
         set_requires_grad(self.target_encoder, requires=False)
-        set_requires_grad(self.target_projector, requires=False)
-        # loss function
-        self.criterion = loss_fn
 
     def forward(self, x01, x02):
+        if self.target_encoder is None or self.target_projector is None:
+            self.get_target_ecnoder()
+            self.get_target_projector()
+
         online_representation01 = self.online_encoder(x01)
         online_representation02 = self.online_encoder(x02)
         print(online_representation01.size())
