@@ -3,6 +3,7 @@ from torch.utils import data
 import src.data.dataset_librispeech as librispeech
 import src.data.dataset_voxceleb as voxceleb
 import src.data.dataset_normal as normal
+import src.data.dataset_byol_audio as byol_audio
 torchaudio.set_audio_backend("sox_io")
 
 
@@ -26,10 +27,20 @@ def get_dataloader(config, mode='train'):
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
         )
+    elif dataset_type == 'ByolAudioDataset':
+        dataset = byol_audio.ByolAudioDataset(
+            directory_path=config['{}_dataset'.format(mode)],
+            audio_window=config['audio_window'],
+            full_audio=config['full_audio'],
+            config=config,
+            use_librosa=config['use_librosa'],
+            mode=mode
+        )
     else:
         dataset = normal.NormalWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
+            augmentation=config['augmentation'],
         )
 
     dataloader = data.DataLoader(
