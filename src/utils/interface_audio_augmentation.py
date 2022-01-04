@@ -84,42 +84,139 @@ def log_mixup_exp(xa, xb, alpha):
     x = alpha * xa + (1. - alpha) * xb
     return torch.log(x + torch.finfo(x.dtype).eps)
 
-    class MixupBYOLA(nn.Module):
-        """Mixup for BYOL-A.
+class MixupBYOLA(nn.Module):
+    """Mixup for BYOL-A.
 
-        Args:
-            ratio: Alpha in the paper.
-            n_memory: Size of memory bank FIFO.
-            log_mixup_exp: Use log-mixup-exp to mix if this is True, or mix without notion of log-scale.
-        """
+    Args:
+        ratio: Alpha in the paper.
+        n_memory: Size of memory bank FIFO.
+        log_mixup_exp: Use log-mixup-exp to mix if this is True, or mix without notion of log-scale.
+    """
 
-        def __init__(self, ratio=0.4, n_memory=2048, log_mixup_exp=True):
-            super().__init__()
-            self.ratio = ratio
-            self.n = n_memory
-            self.log_mixup_exp = log_mixup_exp
-            self.memory_bank = []
+    def __init__(self, ratio=0.4, n_memory=2048, log_mixup_exp=True):
+        super().__init__()
+        self.ratio = ratio
+        self.n = n_memory
+        self.log_mixup_exp = log_mixup_exp
+        self.memory_bank = []
 
-        def forward(self, x):
-            # mix random
-            alpha = self.ratio * np.random.random()
-            if self.memory_bank:
-                # get z as a mixing background sound
-                z = self.memory_bank[np.random.randint(len(self.memory_bank))]
-                # mix them
-                mixed = log_mixup_exp(x, z, 1. - alpha) if self.log_mixup_exp \
+    def forward(self, x):
+        # mix random
+        alpha = self.ratio * np.random.random()
+        if self.memory_bank:
+            # get z as a mixing background sound
+            z = self.memory_bank[np.random.randint(len(self.memory_bank))]
+            # mix them
+            mixed = log_mixup_exp(x, z, 1. - alpha) if self.log_mixup_exp \
                     else alpha * z + (1. - alpha) * x
-            else:
-                mixed = x
-            # update memory bank
-            self.memory_bank = (self.memory_bank + [x])[-self.n:]
+        else:
+            mixed = x
+        # update memory bank
+        self.memory_bank = (self.memory_bank + [x])[-self.n:]
 
-            return mixed.to(torch.float)
+        return mixed.to(torch.float)
 
-        def __repr__(self):
-            format_string = self.__class__.__name__ + f'(ratio={self.ratio},n={self.n}'
-            format_string += f',log_mixup_exp={self.log_mixup_exp})'
-            return format_string
+    def __repr__(self):
+        format_string = self.__class__.__name__ + f'(ratio={self.ratio},n={self.n}'
+        format_string += f',log_mixup_exp={self.log_mixup_exp})'
+        return format_string
+
+class MixGaussianNoise():
+    """Gaussian Noise Mixer.
+    This interpolates with random sample, unlike Mixup.
+    """
+
+    def __init__(self, ratio=0.3):
+        self.ratio = ratio
+
+    def forward(self, lms):
+        x = lms.exp()
+
+        lambd = self.ratio * np.random.rand()
+        z = torch.normal(0, lambd, x.shape).exp()
+        mixed = (1 - lambd) * x + z + torch.finfo(x.dtype).eps
+
+        return mixed.log()
+
+    def __repr__(self):
+        format_string = self.__class__.__name__ + f'(ratio={self.ratio})'
+        return format_string
+
+
+class RunningMean:
+    """Running mean calculator for arbitrary axis configuration."""
+
+    def __init__(self, axis):
+        self.n = 0
+        self.axis = axis
+
+    def put(self, x):
+        # https://math.stackexchange.com/questions/106700/incremental-averageing
+        if self.n == 0:
+            self.mu = x.mean(self.axis, keepdims=True)
+        else:
+            self.mu += (x.mean(self.axis, keepdims=True) - self.mu) / self.n
+        self.n += 1
+
+    def __call__(self):
+        return self.mu
+
+    def __len__(self):
+        return self.n
+
+
+class RunningVariance:
+    """Calculate mean/variance of tensors online.
+    Thanks to https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+    """
+
+    def __init__(self, axis, mean):
+        self.update_mean(mean)
+        self.s2 = RunningMean(axis)
+
+    def update_mean(self, mean):
+        self.mean = mean
+
+    def put(self, x):
+        self.s2.put((x - self.mean) **2)
+
+    def __call__(self):
+        return self.s2()
+
+    def std(self):
+        return np.sqrt(self())
+
+
+class RunningNorm(nn.Module):
+    """Online Normalization using Running Mean/Std.
+
+    This module will only update the statistics up to the specified number of epochs.
+    After the `max_update_epochs`, this will normalize with the last updated statistics.
+
+    Args:
+        epoch_samples: Number of samples in one epoch
+        max_update_epochs: Number of epochs to allow update of running mean/variance.
+        axis: Axis setting used to calculate mean/variance.
+    """
+
+    def __init__(self, epoch_samples, max_update_epochs=10, axis=[1, 2]):
+        super().__init__()
+        self.max_update = epoch_samples * max_update_epochs
+        self.ema_mean = RunningMean(axis)
+        self.ema_var = RunningVariance(axis, 0)
+
+    def forward(self, image):
+        if len(self.ema_mean) < self.max_update:
+            self.ema_mean.put(image)
+            self.ema_var.update_mean(self.ema_mean())
+            self.ema_var.put(image)
+            self.mean = self.ema_mean()
+            self.std = torch.clamp(self.ema_var.std(), torch.finfo().eps, torch.finfo().max)
+        return ((image - self.mean) / self.std)
+
+    def __repr__(self):
+        format_string = self.__class__.__name__ + f'(max_update={self.max_update},axis={self.ema_mean.axis})'
+        return format_string
 
 
 class PrecomputedNorm(nn.Module):
@@ -165,3 +262,19 @@ class NormalizeBatch(nn.Module):
     def __repr__(self):
         format_string = self.__class__.__name__ + f'(axis={self.axis})'
         return format_string
+
+
+class AugmentationModule:
+    """BYOL-A augmentation module example, the same parameter with the paper."""
+
+    def __init__(self, size, epoch_samples, log_mixup_exp=True, mixup_ratio=0.4):
+        self.train_transform = nn.Sequential(
+            MixupBYOLA(ratio=mixup_ratio, log_mixup_exp=log_mixup_exp),
+            RandomResizeCrop(virtual_crop_scale=(1.0, 1.5), freq_scale=(0.6, 1.5), time_scale=(0.6, 1.5)),
+        )
+        self.pre_norm = RunningNorm(epoch_samples=epoch_samples)
+        print('Augmentatoions:', self.train_transform)
+
+    def __call__(self, x):
+        x = self.pre_norm(x)
+        return self.train_transform(x), self.train_transform(x)
