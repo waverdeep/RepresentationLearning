@@ -1,5 +1,6 @@
-import dataset_normal as normal
+import src.data.dataset_normal as normal
 import src.utils.interface_audio_io as audio_io
+import src.utils.interface_audio_augmentation as audio_augmentation
 import torch.nn.functional as F
 import random
 import torch
@@ -7,10 +8,13 @@ import torch
 
 class ByolAudioDataset(normal.NormalWaveformDataset):
     def __init__(self, directory_path, audio_window=20480, full_audio=False, config=None, use_librosa=True,
-                 transforms=None):
+                 mode='train'):
         super().__init__(directory_path=directory_path, audio_window=audio_window, full_audio=full_audio)
         self.config = config
-        self.transforms = transforms
+        if mode == 'train':
+            self.transforms = audio_augmentation.AugmentationModule((64, 96), 2 * len(self.file_list))
+        else:
+            self.transforms = None
         self.to_melspectrogram = audio_io.MelSpectrogramLibrosa(
             fs=config['sampling_rate'],
             n_fft=config['n_fft'],
@@ -43,10 +47,12 @@ class ByolAudioDataset(normal.NormalWaveformDataset):
         waveform = waveform[start:start + self.audio_window]
 
         # to log mel spectrogram -> (1, n_mels, time)
-        log_mel_spectrogram = (self.to_melspecgram(waveform) + torch.finfo().eps).log().unsqueeze(0)
+        log_mel_spectrogram = (self.to_melspectrogram(waveform) + torch.finfo().eps).log().unsqueeze(0)
 
         # transform (augment)
-        if self.tfms:
-            log_mel_spectrogram = self.tfms(log_mel_spectrogram)
+        if self.transforms:
+            log_mel_spectrogram = self.transforms(log_mel_spectrogram)
+        else:
+            log_mel_spectrogram = (log_mel_spectrogram, log_mel_spectrogram)
 
         return log_mel_spectrogram, 0, 0
