@@ -1,12 +1,14 @@
 from torch.utils.data import Dataset
 import src.utils.interface_audio_io as audio_io
+import src.utils.interface_audio_augmentation as audio_augmentation
 
 
 class NormalWaveformDataset(Dataset):
-    def __init__(self, directory_path, audio_window=20480, full_audio=False):
+    def __init__(self, directory_path, audio_window=20480, full_audio=False, augmentation=False):
         self.directory_path = directory_path
         self.audio_window = audio_window
         self.full_audio = full_audio
+        self.augmentation = augmentation
 
         self.file_list = []
         id_data = open(self.directory_path, 'r')
@@ -25,6 +27,10 @@ class NormalWaveformDataset(Dataset):
         assert (
                 sampling_rate == 16000
         ), "sampling rate is not consistent throughout the dataset"
+
+        if self.augmentation:
+            waveform = audio_augmentation.audio_augment_baseline(waveform, sampling_rate)
+
         if not self.full_audio:
             waveform = audio_io.random_cutoff(waveform, self.audio_window)
         return waveform, 0, 0
