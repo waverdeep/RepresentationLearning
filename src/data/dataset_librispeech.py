@@ -1,11 +1,13 @@
 import torch
 import torchaudio
 from torch.utils.data import Dataset
+import numpy as np
 import torchaudio.transforms as T
 import src.utils.interface_audio_io as audio_io
 import src.data.dataset_tool_speaker as speaker_tool
 import src.utils.interface_audio_augmentation as audio_augmentation
 torchaudio.set_audio_backend("sox_io")
+import torch.nn.functional as F
 
 
 class LibriSpeechWaveformDataset(Dataset):
@@ -64,3 +66,50 @@ class LibriSpeechWaveformDataset(Dataset):
         for index in range(batch_size):
             batch[index, 0, :], _, _ = self.__getitem__(self.speaker_align[speaker_id][index])
         return batch
+
+
+class LibriSpeechWaveformDatasetByBYOL(LibriSpeechWaveformDataset):
+    def __getitem__(self, index):
+        # 오디오파일 가져오기
+        audio_file = self.file_list[index]
+        audio_file = audio_file[4:]
+        # 오디오파일 읽기 (loader)
+        waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
+        # speaker_id, sample_id 추출
+        filename = audio_file.split("/")[-1]
+        filename = filename.split(".")[0]  # speaker_id, dir_id, sample_id
+        speaker_id = filename.split("-")[0]
+        pick_index = np.random.randint(waveform.shape[1] - self.audio_window + 1)
+
+        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
+        assert (
+                sampling_rate == self.sampling_rate
+        ), "sampling rate is not consistent throughout the dataset"
+
+        length_adj = 20480 - len(waveform[0])
+        if length_adj > 0:
+            half_adj = length_adj // 2
+            waveform = F.pad(waveform, (half_adj, length_adj - half_adj))
+
+
+        # pitch shift의 경우 audio length를 변경시키는 경우가 있어서 audio window로 자르기 전에
+        # augmentation을 진행한다.
+        if self.augmentation:
+            aug01_waveform = audio_augmentation.audio_pitch_shift(waveform, sampling_rate)
+            aug02_waveform = audio_augmentation.audio_pitch_shift(waveform, sampling_rate)
+            aug01_waveform = audio_augmentation.audio_reverb(aug01_waveform, sampling_rate)
+            aug02_waveform = audio_augmentation.audio_reverb(aug02_waveform, sampling_rate)
+            aug01_waveform = audio_augmentation.audio_band_reject(aug01_waveform, sampling_rate)
+            aug02_waveform = audio_augmentation.audio_band_reject(aug02_waveform, sampling_rate)
+
+        if not self.full_audio:
+            aug01_waveform = audio_io.random_cutoff(aug01_waveform, self.audio_window, pick_index)
+            aug02_waveform = audio_io.random_cutoff(aug02_waveform, self.audio_window, pick_index)
+
+        if self.augmentation:
+
+            aug01_waveform = audio_augmentation.audio_time_dropout(aug01_waveform, sampling_rate)
+            aug02_waveform = audio_augmentation.audio_time_dropout(aug02_waveform, sampling_rate)
+
+
+        return aug01_waveform, aug02_waveform, str(filename), str(speaker_id)
