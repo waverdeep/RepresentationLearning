@@ -1,6 +1,8 @@
 from torch.utils.data import Dataset
 import src.utils.interface_audio_io as audio_io
 import src.utils.interface_audio_augmentation as audio_augmentation
+import numpy as np
+import torch
 
 
 class NormalWaveformDataset(Dataset):
@@ -33,4 +35,27 @@ class NormalWaveformDataset(Dataset):
 
         if not self.full_audio:
             waveform = audio_io.random_cutoff(waveform, self.audio_window)
+        return waveform, 0, 0
+
+
+class NormalWaveformDatasetByBYOL(NormalWaveformDataset):
+    def __getitem__(self, index):
+        audio_file = self.file_list[index]
+        audio_file = audio_file[4:]
+        waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
+        pick_index = np.random.randint(waveform.shape[1] - self.audio_window + 1)
+        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
+        assert (
+                sampling_rate == 16000
+        ), "sampling rate is not consistent throughout the dataset"
+
+        if self.augmentation:
+            aug01_waveform = audio_augmentation.audio_augment_baseline(waveform, sampling_rate)
+            aug02_waveform = audio_augmentation.audio_augment_baseline(waveform, sampling_rate)
+
+        if not self.full_audio:
+            aug01_waveform = audio_io.random_cutoff(aug01_waveform, self.audio_window, pick_index)
+            aug02_waveform = audio_io.random_cutoff(aug02_waveform, self.audio_window, pick_index)
+
+        waveform = torch.cat((aug01_waveform, aug02_waveform))
         return waveform, 0, 0
