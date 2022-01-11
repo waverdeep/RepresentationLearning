@@ -7,6 +7,7 @@ import multiprocessing
 import src.utils.interface_multiprocessing as mi
 import torchaudio
 import numpy as np
+import torch.nn.functional as F
 import torch
 torchaudio.set_audio_backend("sox_io")
 
@@ -15,11 +16,24 @@ def audio_loader(audio_file):
     return torchaudio.load(audio_file)
 
 
-def random_cutoff(waveform, audio_window):
+def random_cutoff(waveform, audio_window, index=None):
     audio_length = waveform.shape[1]
-    random_index = np.random.randint(audio_length - audio_window + 1)
+    if index is None:
+        random_index = np.random.randint(audio_length - audio_window + 1)
+    else:
+        random_index = index
     cutoff_waveform = waveform[:, random_index: random_index + audio_window]
     return cutoff_waveform
+
+
+def audio_adjust_length(x, audio_window, fit=False):
+    length_adj = audio_window - len(x[0])
+    if length_adj > 0:
+        half_adj = length_adj // 2
+        x = F.pad(x, (half_adj, length_adj - half_adj))
+    if fit:
+        x = x[:, :audio_window]
+    return x
 
 
 def audio_auto_trim(waveform, vad, audio_window=None):
