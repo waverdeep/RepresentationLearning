@@ -3,6 +3,7 @@ import src.utils.interface_audio_io as audio_io
 import src.utils.interface_audio_augmentation as audio_augmentation
 import numpy as np
 import torch
+import random
 
 
 class NormalWaveformDataset(Dataset):
@@ -43,19 +44,27 @@ class NormalWaveformDatasetByBYOL(NormalWaveformDataset):
         audio_file = self.file_list[index]
         audio_file = audio_file[4:]
         waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
-        pick_index = np.random.randint(waveform.shape[1] - self.audio_window + 1)
+        augmentation_list = [0, 1, 2, 3, 4, 5]
+
         # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
         assert (
-                sampling_rate == 16000
+                sampling_rate == self.sampling_rate
         ), "sampling rate is not consistent throughout the dataset"
 
-        if self.augmentation:
-            aug01_waveform = audio_augmentation.audio_augment_baseline(waveform, sampling_rate)
-            aug02_waveform = audio_augmentation.audio_augment_baseline(waveform, sampling_rate)
-
+        waveform = audio_io.audio_adjust_length(waveform, self.audio_window)
+        pick_index = np.random.randint(waveform.shape[1] - self.audio_window + 1)
         if not self.full_audio:
-            aug01_waveform = audio_io.random_cutoff(aug01_waveform, self.audio_window, pick_index)
-            aug02_waveform = audio_io.random_cutoff(aug02_waveform, self.audio_window, pick_index)
+            aug01_waveform = audio_io.random_cutoff(waveform, self.audio_window, pick_index)
+            aug02_waveform = audio_io.random_cutoff(waveform, self.audio_window, pick_index)
 
-        waveform = torch.cat((aug01_waveform, aug02_waveform))
-        return waveform, 0, 0
+        if self.augmentation:
+            aug01_waveform = audio_augmentation.audio_augmentation_pipeline(aug01_waveform, sampling_rate,
+                                                                            self.audio_window,
+                                                                            random.sample(augmentation_list, 3))
+            aug02_waveform = audio_augmentation.audio_augmentation_pipeline(aug02_waveform, sampling_rate,
+                                                                            self.audio_window,
+                                                                            random.sample(augmentation_list, 3))
+
+        aug01_waveform = audio_io.audio_adjust_length(aug01_waveform, self.audio_window)
+        aug02_waveform = audio_io.audio_adjust_length(aug02_waveform, self.audio_window)
+        return aug01_waveform, aug02_waveform, 0, 0
