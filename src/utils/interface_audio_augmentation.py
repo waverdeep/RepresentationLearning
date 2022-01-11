@@ -30,7 +30,7 @@ def audio_band_reject(x, sr):
     return y
 
 
-def audio_time_dropout(x, sr, max_seconds=0.5):
+def audio_time_dropout(x, sr, max_seconds=0.1):
     combination = augment.EffectChain().time_dropout(max_seconds=max_seconds)
     y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
     return y
@@ -56,12 +56,35 @@ def audio_clipping_audio(x, sr, clipping_rate=0.25):
     return y
 
 
+def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation):
+    pipeline = []
+    for pick in pick_augmentation:
+        if pick == 0:
+            pipeline.append(audio_band_reject)
+        elif pick == 1:
+            pipeline.append(audio_time_dropout)
+        elif pick == 2:
+            pipeline.append(audio_reverb)
+        elif pick == 3:
+            pipeline.append(audio_pitch_shift)
+        elif pick == 4:
+            pipeline.append(audio_clipping_audio)
+        elif pick == 5:
+            pipeline.append(audio_additive_noise)
+
+    for method in pipeline:
+        x = method(x, sr)
+        if len(x[0]) != audio_window:
+            x = audio_io.audio_adjust_length(x, audio_window, True)
+    return x
+
+
 def noise_generator():
     dataset_path = "./dataset/musan-total.txt"
     filelist = file_io.read_txt2list(dataset_path)
     pick = np.random.randint(len(filelist))
-    print(filelist[pick][4:])
     waveform, sampling_rate = audio_io.audio_loader(filelist[pick][4:])
+    waveform = audio_io.audio_adjust_length(waveform, 20480)
     waveform = audio_io.random_cutoff(waveform, 20480)
     return waveform[0]
 

@@ -15,32 +15,45 @@ def get_dataloader(config, mode='train'):
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
             augmentation=config['augmentation'],
+            full_audio=False,
         )
-    elif dataset_type == 'LibriSpeechFullWaveformDataset':
-        dataset = librispeech.LibriSpeechWaveformDataset(
+    elif dataset_type == 'LibriSpeechWaveformDatasetByBYOL':
+        dataset = librispeech.LibriSpeechWaveformDatasetByBYOL(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
-            full_audio=True,
+            augmentation=config['augmentation'],
+            full_audio=False,
         )
     elif dataset_type == 'VoxWaveformDataset':
         dataset = voxceleb.VoxWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
+            augmentation=config['augmentation'],
+            full_audio=False,
         )
+    # this dataset output type is log-scaled mel spectrogram
     elif dataset_type == 'ByolAudioDataset':
         dataset = byol_audio.ByolAudioDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
             full_audio=config['full_audio'],
-            config=config,
             use_librosa=config['use_librosa'],
+            config=config,
             mode=mode
+        )
+    elif dataset_type == 'NormalWaveformDatasetByBYOL':
+        dataset = normal.NormalWaveformDatasetByBYOL(
+            directory_path=config['{}_dataset'.format(mode)],
+            audio_window=config['audio_window'],
+            augmentation=config['augmentation'],
+            full_audio=False,
         )
     else:
         dataset = normal.NormalWaveformDataset(
             directory_path=config['{}_dataset'.format(mode)],
             audio_window=config['audio_window'],
             augmentation=config['augmentation'],
+            full_audio=False,
         )
 
     dataloader = data.DataLoader(
