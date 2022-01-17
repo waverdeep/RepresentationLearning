@@ -61,15 +61,15 @@ def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation):
     for pick in pick_augmentation:
         if pick == 0:
             pipeline.append(audio_band_reject)
+        # elif pick == 1:
+        #     pipeline.append(audio_time_dropout)
         elif pick == 1:
-            pipeline.append(audio_time_dropout)
-        elif pick == 2:
             pipeline.append(audio_reverb)
-        elif pick == 3:
+        elif pick == 2:
             pipeline.append(audio_pitch_shift)
-        elif pick == 4:
-            pipeline.append(audio_clipping_audio)
-        elif pick == 5:
+        # elif pick == 4:
+        #     pipeline.append(audio_clipping_audio)
+        elif pick == 3:
             pipeline.append(audio_additive_noise)
 
     for method in pipeline:
