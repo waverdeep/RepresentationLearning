@@ -7,11 +7,12 @@ import random
 
 
 class NormalWaveformDataset(Dataset):
-    def __init__(self, directory_path, audio_window=20480, full_audio=False, augmentation=False):
+    def __init__(self, directory_path, audio_window=20480, full_audio=False, augmentation=False, sampling_rate=16000):
         self.directory_path = directory_path
         self.audio_window = audio_window
         self.full_audio = full_audio
         self.augmentation = augmentation
+        self.sampling_rate = sampling_rate
 
         self.file_list = []
         id_data = open(self.directory_path, 'r')
@@ -44,7 +45,7 @@ class NormalWaveformDatasetByBYOL(NormalWaveformDataset):
         audio_file = self.file_list[index]
         audio_file = audio_file[4:]
         waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
-        augmentation_list = [0, 1, 2, 3, 4, 5]
+        augmentation_list = [0, 1, 2, 3]
 
         # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
         assert (
