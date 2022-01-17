@@ -13,10 +13,11 @@ def get_vox_speaker_list(file_list):
 
 
 class VoxWaveformDataset(normal.NormalWaveformDataset):
-    def __init__(self, directory_path, audio_window=20480, full_audio=False):
+    def __init__(self, directory_path, audio_window=20480, augmentation=False, full_audio=False):
         normal.NormalWaveformDataset.__init__(self, directory_path, audio_window)
         self.audio_window = audio_window
         self.full_audio = full_audio
+        self.augmentation = augmentation
         self.speaker_list = get_vox_speaker_list(self.file_list)
         self.speaker_dict = speaker_tool.get_speaker_dict(self.speaker_list)
 
