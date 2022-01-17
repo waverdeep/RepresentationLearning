@@ -80,8 +80,7 @@ class LibriSpeechWaveformDatasetByBYOL(LibriSpeechWaveformDataset):
         filename = audio_file.split("/")[-1]
         filename = filename.split(".")[0]  # speaker_id, dir_id, sample_id
         speaker_id = filename.split("-")[0]
-
-        augmentation_list = [0, 1, 2, 3, 4, 5]
+        augmentation_list = [0, 1, 2, 3]
 
 
         # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
