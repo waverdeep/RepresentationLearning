@@ -14,7 +14,7 @@ class ByolAudioDataset(normal.NormalWaveformDataset):
         if mode == 'train':
             self.transforms = audio_augmentation.AugmentationModule((64, 96), 2 * len(self.file_list))
         else:
-            self.transforms = None
+            self.transforms = audio_augmentation.AugmentationModule((64, 96), 2 * len(self.file_list))
         self.to_melspectrogram = audio_io.MelSpectrogramLibrosa(
             fs=config['sampling_rate'],
             n_fft=config['n_fft'],
