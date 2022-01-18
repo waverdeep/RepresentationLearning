@@ -6,7 +6,7 @@ import torchvision
 import torch.nn as nn
 import src.losses.criterion as losses
 import src.models.model_proposed02 as model_proposed02
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 
 class EncoderNetwork(nn.Module):

@@ -20,7 +20,7 @@ class EncoderNetwork(nn.Module):
                 ]
             )
         )
-        self.efficient_network = EfficientNet.from_pretrained('efficientnet-b4')
+        self.efficient_network = EfficientNet.from_pretrained('efficientnet-b7')
 
     def forward(self, x):
         out = self.network(x)

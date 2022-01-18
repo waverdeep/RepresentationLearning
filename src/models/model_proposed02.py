@@ -28,14 +28,14 @@ class EncoderNetwork(nn.Module):
             collections.OrderedDict(
                 [
                     ("feature_extract_layer01", nn.Conv2d(1, 3, kernel_size=1, stride=1)), # it just 1*1 convolution
-                    ("feature_extract_layer02", torchvision.models.resnet50(pretrained=False).conv1),
-                    ("feature_extract_layer03", torchvision.models.resnet50(pretrained=False).bn1),
-                    ("feature_extract_layer04", torchvision.models.resnet50(pretrained=False).relu),
-                    ("feature_extract_layer05", torchvision.models.resnet50(pretrained=False).maxpool),
-                    ("feature_extract_layer06", torchvision.models.resnet50(pretrained=False).layer1),
-                    ("feature_extract_layer07", torchvision.models.resnet50(pretrained=False).layer2),
-                    ("feature_extract_layer08", torchvision.models.resnet50(pretrained=False).layer3),
-                    ("feature_extract_layer09", torchvision.models.resnet50(pretrained=False).layer4),
+                    ("feature_extract_layer02", torchvision.models.resnet50(pretrained=True).conv1),
+                    ("feature_extract_layer03", torchvision.models.resnet50(pretrained=True).bn1),
+                    ("feature_extract_layer04", torchvision.models.resnet50(pretrained=True).relu),
+                    ("feature_extract_layer05", torchvision.models.resnet50(pretrained=True).maxpool),
+                    ("feature_extract_layer06", torchvision.models.resnet50(pretrained=True).layer1),
+                    ("feature_extract_layer07", torchvision.models.resnet50(pretrained=True).layer2),
+                    ("feature_extract_layer08", torchvision.models.resnet50(pretrained=True).layer3),
+                    ("feature_extract_layer09", torchvision.models.resnet50(pretrained=True).layer4),
 
                 ]
             )
@@ -78,9 +78,10 @@ class PredictionNetwork(nn.Module):
 
 class WaveBYOL(nn.Module):
     def __init__(self, config, pre_input_dims, pre_hidden_dims, pre_filter_sizes, pre_strides, pre_paddings,
-                 dimension, hidden_size, projection_size):
+                 dimension, hidden_size, projection_size, research=True):
         super(WaveBYOL, self).__init__()
         self.config = config
+        self.research = research
         self.online_pre_network = PreNetwork( # CPC encoder와 동일하게 매칭되는 부분
             input_dim=pre_input_dims,
             hidden_dim=pre_hidden_dims,
@@ -101,6 +102,13 @@ class WaveBYOL(nn.Module):
         # 아직도 이 loss에 대해서 좀 분분인데 일단은 그냥 쓰기로 햇음
         self.criterion = losses.byol_a_criterion
 
+        self.output_representation = nn.AdaptiveAvgPool3d((1, 16, 4))
+
+    def setup_target_network(self):
+        self.get_pre_network()
+        self.get_target_encoder()
+        self.get_target_projector()
+
     def get_pre_network(self):
         self.target_pre_network = copy.deepcopy(self.online_pre_network)
         set_requires_grad(self.target_pre_network, requires=False)
@@ -117,6 +125,7 @@ class WaveBYOL(nn.Module):
         online_x = self.online_pre_network(x)
         online_x = online_x.unsqueeze(1)
         online_representation = self.online_encoder_network(online_x)
+        online_representation = online_representation.permute(0, 3, 2, 1)
         return online_representation
 
     def forward(self, x01, x02):
@@ -130,16 +139,17 @@ class WaveBYOL(nn.Module):
         # online network 관련 코드부터 실행 (x01과 x02 모두)
         # input: (batch, frequency, timestep)
         # output: (batch, frequency, timestep)
-        online_x01 = self.online_pre_network(x01)
-        online_x02 = self.online_pre_network(x02)
+        online_x01_pre = self.online_pre_network(x01)
+        online_x02_pre = self.online_pre_network(x02)
         # shape: (batch, channel, frequency, timestep)
-        online_x01 = online_x01.unsqueeze(1)
-        online_x02 = online_x02.unsqueeze(1)
+        online_x01 = online_x01_pre.unsqueeze(1)
+        online_x02 = online_x02_pre.unsqueeze(1)
         # input: (batch, channel, frequency, timestep)
         # output: (batch, channel, frequency, timestep) -> 여기서 channel 이 빵빵해지고 나머지가 줄어들 것
         online_representation01 = self.online_encoder_network(online_x01)
         online_representation02 = self.online_encoder_network(online_x02)
-
+        online_representation01_output = self.output_representation(online_representation01)
+        online_representation02_output = self.output_representation(online_representation02)
         # shape 변경: (batch, time, frequency (mel), channel)
         online_representation01_reshape = online_representation01.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
         online_representation02_reshape = online_representation02.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
@@ -149,7 +159,7 @@ class WaveBYOL(nn.Module):
         online_representation01_reshape = online_representation01_reshape.reshape((B1, T1 * C1 * D1))
         online_representation02_reshape = online_representation02_reshape.reshape((B2, T2 * C2 * D2))
         # ** projection과 prediction들어가기 전에 한번더 변환해주어야 함 (아니면 투딤으로 그냥 가버려?)
-        print(online_representation01_reshape.size())
+        # print(online_representation02_reshape.size())
         online_projection01 = self.online_projector_network(online_representation01_reshape)
         online_projection02 = self.online_projector_network(online_representation02_reshape)
         online_prediction01 = self.online_predictor_network(online_projection01)
@@ -158,15 +168,17 @@ class WaveBYOL(nn.Module):
         with torch.no_grad():
             # input: (batch, frequency, timestep)
             # output: (batch, frequency, timestep)
-            target_x01 = self.target_pre_network(x01)
-            target_x02 = self.target_pre_network(x02)
+            target_x01_pre = self.target_pre_network(x01)
+            target_x02_pre = self.target_pre_network(x02)
             # shape: (batch, channel, frequency, timestep)
-            target_x01 = target_x01.unsqueeze(1)
-            target_x02 = target_x02.unsqueeze(1)
+            target_x01 = target_x01_pre.unsqueeze(1)
+            target_x02 = target_x02_pre.unsqueeze(1)
             # input: (batch, channel, frequency, timestep)
             # output: (batch, channel, frequency, timestep) -> 여기서 channel 이 빵빵해지고 나머지가 줄어들 것
             target_representation01 = self.target_encoder_network(target_x01)
             target_representation02 = self.target_encoder_network(target_x02)
+            target_representation01_output = self.output_representation(target_representation01)
+            target_representation02_output = self.output_representation(target_representation02)
             # shape 변경: (batch, time, frequency (mel), channel)
             target_representation01_reshape = target_representation01.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
             target_representation02_reshape = target_representation02.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
@@ -175,7 +187,6 @@ class WaveBYOL(nn.Module):
             # shape 변경 (batch, time, frequency * channel)
             target_representation01_reshape = target_representation01_reshape.reshape((B1, T1 * C1 * D1))
             target_representation02_reshape = target_representation02_reshape.reshape((B2, T2 * C2 * D2))
-            print(target_representation02_reshape.size())
             # target line은  projection만 시킨다~
             target_projection01 = self.target_projector_network(target_representation01_reshape)
             target_projection02 = self.target_projector_network(target_representation02_reshape)
@@ -185,7 +196,10 @@ class WaveBYOL(nn.Module):
         loss01 = self.criterion(online_prediction01, target_projection02.detach())
         loss02 = self.criterion(online_prediction02, target_projection01.detach())
         loss = loss01 + loss02
-        return online_representation01, loss.mean()
+        if self.research:
+            return online_x01_pre, online_x02_pre, online_representation01_output, online_representation02_output, target_x01_pre, target_x02_pre, target_representation01_output, target_representation02_output, loss.mean()
+        else:
+            return online_representation01, online_representation02, target_representation01, target_representation02, loss.mean()
 
 
 if __name__ == '__main__':
@@ -248,8 +262,11 @@ if __name__ == '__main__':
 
     input_data01 = torch.rand(8, 1, 20480).cuda()
     input_data02 = torch.rand(8, 1, 20480).cuda()
-    output, _ = test_model(input_data01, input_data02)
-    print(output.size())
+    online_output01, _, target_output01, _, _ = test_model(input_data01, input_data02)
+    print(online_output01.size())
+    print(target_output01.size())
+    # representation = test_model.get_representation(input_data01)
+    # print(representation.size())
 
 
 
