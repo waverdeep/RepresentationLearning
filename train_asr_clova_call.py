@@ -32,7 +32,7 @@ from src.data.dataset_clova_call import AudioDataLoader, SpectrogramDataset, Buc
 
 from src.models.model_clova_call import EncoderRNN, DecoderRNN, Seq2Seq
 import src.utils.interface_tensorboard as tensorboard
-import train as train_tool
+import src.utils.interface_train_tool as train_tool
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 random_seed = 777

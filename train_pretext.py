@@ -13,7 +13,7 @@ import src.utils.interface_tensorboard as tensorboard
 import src.utils.interface_plot as plots
 import src.utils.interface_train_tool as train_tool
 from apex.parallel import DistributedDataParallel as DDP
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 
 def main():
@@ -23,7 +23,7 @@ def main():
     parser.add_argument("--apex", default=False, type=bool)
     parser.add_argument("--local_rank", default=0, type=int)
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_pretext-CPC(baseline)-kspon-training01-batch64.json')
+                        default='./config/config_pretext-GCPC-librispeech100-training01-batch256.json')
     args = parser.parse_args()
 
     train_tool.setup_seed(random_seed=777)
@@ -81,11 +81,6 @@ def main():
     writer = tensorboard.set_tensorboard_writer(
         "{}-{}".format(config['tensorboard_writer_name'], now)
     )
-
-    # inspect model
-
-    # sample = torch.FloatTensor([1, 1, 20480])
-    # tensorboard.inspect_model(writer=writer, model=model.module, data=sample)
 
     # print model information
     format_logger.info(">>> model_structure <<<")

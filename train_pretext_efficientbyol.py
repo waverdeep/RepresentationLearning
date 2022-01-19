@@ -11,14 +11,14 @@ import src.optimizers.optimizer as optimizers
 import src.utils.interface_audio_augmentation as audio_augmentation
 import src.optimizers.ExponentialMovingAverage as ema
 import src.losses.criterion_metrics as metrics
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 
 def main():
     # Configuration 불러오기
     parser = argparse.ArgumentParser(description='waverdeep - waveBYOL proposed')
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_pretext-WAVEBYOLTest03-librispeech100-efficientb4aug-15200.json')
+                        default='./config/config_pretext-EfficientBYOL-librispeech100-efficientb7aug-batch64.json')
     args = parser.parse_args()
     now = train_tool.setup_timestamp()
 
@@ -64,7 +64,7 @@ def main():
     format_logger.info("{}".format(model))
 
     # start training ....
-    best_loss = None
+    best_loss = 0.0
     num_of_epoch = config['epoch']
     for epoch in range(num_of_epoch):
         epoch = epoch + 1
@@ -73,19 +73,12 @@ def main():
         format_logger.info("start test ... [ {}/{} epoch - {} iter ]".format(epoch, num_of_epoch, len(test_loader)))
         test_loss = test(config, writer, epoch, model, test_loader)
 
-        if best_loss is None:
-            best_loss = test_loss
-        elif test_loss < best_loss:
+        if test_loss < best_loss:
             best_loss = test_loss
             best_epoch = epoch
             train_tool.save_checkpoint(config=config, model=model, optimizer=optimizer,
                                        loss=test_loss, epoch=best_epoch, format_logger=format_logger, mode="best",
                                        date='{}'.format(now))
-
-        # if epoch % 50 == 0:
-        #     train_tool.save_checkpoint(config=config, model=model, optimizer=optimizer,
-        #                                loss=test_loss, epoch=best_epoch, format_logger=format_logger, mode="step",
-        #                                date='{}'.format(now))
 
     tensorboard.close_tensorboard_writer(writer)
 
@@ -94,12 +87,16 @@ def train(config, writer, epoch, model, train_loader, optimizer):
     model.train()
     total_loss = 0.0
     target_ema = ema.EMA(config['ema_decay'])
-    tensorboard.add_dataset_figure(writer, train_loader, "Train", epoch)
-    for batch_idx, (waveform01, waveform02, filename, speaker_id) in enumerate(train_loader):
+    # tensorboard.add_dataset_figure(writer, train_loader, "Train", epoch)
+    for batch_idx, (waveform01, waveform02, waveform03, filename, speaker_id) in enumerate(train_loader):
         if config['use_cuda']:
             data01 = waveform01.cuda()
             data02 = waveform02.cuda()
-        online01_pre, online02_pre, online01_rep, online02_rep, target01_pre, target02_pre, target01_rep, target02_rep, loss = model(data01, data02)
+            data03 = waveform03.cuda()
+        online01_pre, online02_pre, online01_rep, online02_rep, \
+        target01_pre, target02_pre, target01_rep, target02_rep, \
+        loss = model(data01, data02, data03)
+
         model.zero_grad()
         loss.backward()
         optimizer.step()
@@ -130,18 +127,23 @@ def train(config, writer, epoch, model, train_loader, optimizer):
             target01_output_rep = target01_output_rep[0].squeeze().cpu().numpy()
             target02_output_rep = target02_output_rep[0].squeeze().cpu().numpy()
 
-            tensorboard.add_byol_latent_heatmap(writer, online01_output_rep, target02_output_rep, "TrainLatentEncoderVector",
+            tensorboard.add_byol_latent_heatmap(writer, online01_output_rep, target02_output_rep,
+                                                "TrainLatentEncoderVector",
                                                 "online01_vs_target02", (epoch - 1) * len(train_loader) + batch_idx)
-            tensorboard.add_byol_latent_heatmap(writer, online02_output_rep, target01_output_rep, "TrainLatentEncoderVector",
+            tensorboard.add_byol_latent_heatmap(writer, online02_output_rep, target01_output_rep,
+                                                "TrainLatentEncoderVector",
                                                 "online02_vs_target01", (epoch - 1) * len(train_loader) + batch_idx)
 
     total_loss /= len(train_loader.dataset)  # average loss
-
     writer.add_scalar('Loss/train', total_loss, (epoch - 1))
 
     ema.update_moving_average(target_ema, model.target_pre_network, model.online_pre_network)
     ema.update_moving_average(target_ema, model.target_encoder_network, model.online_encoder_network)
     ema.update_moving_average(target_ema, model.target_projector_network, model.online_projector_network)
+    ema.update_moving_average(target_ema, model.modest_pre_network, model.target_pre_network)
+    ema.update_moving_average(target_ema, model.modest_encoder_network, model.target_encoder_network)
+    ema.update_moving_average(target_ema, model.modest_projector_network, model.target_projector_network)
+
 
     conv1d = 0
     conv2d = 0
@@ -164,13 +166,16 @@ def train(config, writer, epoch, model, train_loader, optimizer):
 def test(config, writer, epoch, model, test_loader):
     model.eval()
     total_loss = 0.0
-    tensorboard.add_dataset_figure(writer, test_loader, "Test", epoch)
+    # tensorboard.add_dataset_figure(writer, test_loader, "Test", epoch)
     with torch.no_grad():
-        for batch_idx, (waveform01, waveform02, filename, speaker_id) in enumerate(test_loader):
+        for batch_idx, (waveform01, waveform02, waveform03, filename, speaker_id) in enumerate(test_loader):
             if config['use_cuda']:
                 data01 = waveform01.cuda()
                 data02 = waveform02.cuda()
-            online01_pre, online02_pre, online01_rep, online02_rep, target01_pre, target02_pre, target01_rep, target02_rep, loss = model(data01, data02)
+                data03 = waveform03.cuda()
+            online01_pre, online02_pre, online01_rep, online02_rep, \
+            target01_pre, target02_pre, target01_rep, target02_rep, \
+            loss = model(data01, data02, data03)
             writer.add_scalar('Loss/test_step', loss, (epoch - 1) * len(test_loader) + batch_idx)
             total_loss += len(data01) * loss
 

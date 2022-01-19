@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description='waverdeep - downstream task <speaker-classification>')
     # DISTRIBUTED 사용하기 위해서는 local rank를 argument로 받아야함. 그러면 torch.distributed.launch에서 알아서 해줌
     parser.add_argument('--configuration', required=False,
-                        default='./config/config_spkcls-WAVEBYOL-librispeech100-resnet50aug-batch64.json')
+                        default='./config/config_spkcls-WAVEBYOLTest03-librispeech100-efficientb4aug-batch64.json')
     args = parser.parse_args()
     # read configuration file
     with open(args.configuration, 'r') as configuration:
