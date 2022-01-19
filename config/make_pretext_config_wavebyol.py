@@ -1,18 +1,18 @@
 import json
-name = "spkcls-WAVEBYOL-librispeech100-resnet50aug-batch64"
+name = "pretext-WAVEBYOLTest03-librispeech100-efficientb4aug-15200"
 
 
 configuration = {
     # definition
     "log_filename": "./log/{}".format(name),
     "use_cuda": True,
-    "audio_window": 20480,
+    "audio_window": 15200,
     "sampling_rate": 16000,
     "epoch": 800,
-    "batch_size": 86,
+    "batch_size": 16,
     "learning_rate": 0.0003,
     # dataset
-    "dataset_type": "LibriSpeechWaveformDataset",
+    "dataset_type": "NormalWaveformDatasetByBYOL",
     "train_dataset": "./dataset/librispeech100-baseline-train.txt",
     "test_dataset": "./dataset/librispeech100-baseline-test.txt",
     "num_workers": 16,
@@ -21,24 +21,17 @@ configuration = {
     "augmentation": True,
     "full_audio": False,
     "use_librosa": True,
-    # pretext model
-    "pretext_model_name": "WaveBYOL",
+    # model
+    "pretext_model_name": "WaveBYOLTest03",
     "pre_input_dims": 1,
     "pre_hidden_dims": 512,
     "pre_filter_sizes": [10, 8, 4, 4, 4],
     "pre_strides": [5, 4, 2, 2, 2],
     "pre_paddings": [2, 2, 2, 2, 1],
-    "dimension": 32768,
+    "dimension": 86016, #163840 eff b7, # 114688 eff b4, # 131072 resnet152
     "hidden_size": 512,
     "projection_size": 4096,
     "ema_decay": 0.99,
-    # downstream model
-    "downstream_model_name": "NormalClassification",
-    "downstream_input_dim": 131072,
-    "downstream_hidden_dim": 4096,
-    "downstream_output_dim": 251,
-    # loss
-    "loss_function": "CrossEntropyLoss",
     # optimizer
     "optimizer_name": "Adam",
     "weight_decay": 0,
@@ -50,8 +43,6 @@ configuration = {
     # checkpoint
     "checkpoint_save_directory_path": "./checkpoint",
     "checkpoint_file_name": "{}".format(name),
-    "pretext_checkpoint": './checkpoint/pretext-WAVEBYOL-librispeech100-resnet50aug-batch64-model-best-2022_1_5_5_41_22.pt',
-    "downstream_checkpoint": None,
 }
 
 

@@ -1,6 +1,6 @@
 import json
+name = "pretext-GCPC-librispeech100-training01-batch256"
 
-name = 'CPC_baseline_training01-batch24'
 
 configuration = {
     # definition
@@ -8,17 +8,18 @@ configuration = {
     "use_cuda": True,
     "audio_window": 20480,
     "epoch": 800,
-    "batch_size": 24,
+    "batch_size": 256,
     "learning_rate": 2.0e-4,
     # dataset
-    "dataset_type": "WaveformDataset",
-    "train_dataset": "./dataset/baseline-train-split.txt",
-    "test_dataset": "./dataset/baseline-test-split.txt",
-    "num_workers": 16,
+    "dataset_type": "LibriSpeechWaveformDataset",
+    "train_dataset": "./dataset/librispeech100-baseline-train.txt",
+    "test_dataset": "./dataset/librispeech100-baseline-test.txt",
+    "num_workers": 24,
     "dataset_shuffle": True,
     "pin_memory": True,
+    "augmentation": False,
     # model
-    "model_type": "CPCModel",
+    "pretext_model_name": "GenerativeCPCModel",
     "strides": [5, 4, 2, 2, 2],
     "filter_sizes": [10, 8, 4, 4, 4],
     "paddings": [2, 2, 2, 2, 1],
@@ -41,7 +42,6 @@ configuration = {
     # checkpoint
     "checkpoint_save_directory_path": "./checkpoint",
     "checkpoint_file_name": "{}".format(name),
-    "load_checkpoint": '',
 }
 
 
