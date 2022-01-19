@@ -1,9 +1,10 @@
-import src.data.dataset_tool_speaker as speaker_tool
-import src.utils.interface_audio_io as audio_io
-import src.data.dataset_normal as normal
+import src.data.dataset_baseline as dataset_baseline
+import src.data.dataset_librispeech as dataset_librispeech
+import src.utils.interface_file_io as file_io
+import natsort
 
 
-def get_vox_speaker_list(file_list):
+def get_speaker_list(file_list):
     speaker_list = []
     for index, file in enumerate(file_list):
         temp = file.split('/')
@@ -12,26 +13,24 @@ def get_vox_speaker_list(file_list):
     return speaker_list
 
 
-class VoxWaveformDataset(normal.NormalWaveformDataset):
-    def __init__(self, directory_path, audio_window=20480, augmentation=False, full_audio=False):
-        normal.NormalWaveformDataset.__init__(self, directory_path, audio_window)
-        self.audio_window = audio_window
-        self.full_audio = full_audio
-        self.augmentation = augmentation
-        self.speaker_list = get_vox_speaker_list(self.file_list)
-        self.speaker_dict = speaker_tool.get_speaker_dict(self.speaker_list)
+def get_audio_file_with_speaker_info(file_list, index):
+    audio_file = dataset_baseline.get_audio_file(file_list, index)
+    temp = audio_file.split('/')
+    speaker_id = temp[5][2:]
+    return audio_file, speaker_id
+
+
+class VoxWaveformDataset(dataset_baseline.BaselineWaveformDataset):
+    def __init__(self, directory_path, audio_window=20480, sample_rate=16000, full_audio=False,
+                 augmentation=False, speaker_filelist=None):
+        super().__init__(directory_path, audio_window, sample_rate, full_audio, augmentation)
+        self.speaker_list = natsort.natsorted(file_io.read_txt2list(speaker_filelist))
+        self.speaker_dict = dataset_librispeech.get_speaker_dict(self.speaker_list)
 
     def __getitem__(self, index):
         # ../../dataset/vox01/wav/id10977/radm0JQM9aI/00012.wav
-        audio_file = self.file_list[index]
-        temp = audio_file.split('/')
-        speaker_id = temp[5][2:]
-        audio_file = audio_file[4:]
-        waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
-        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
-        assert (
-                sampling_rate == 16000
-        ), "sampling rate is not consistent throughout the dataset"
-        if not self.full_audio:
-            waveform = audio_io.random_cutoff(waveform, self.audio_window)
-        return waveform, 0, speaker_id
+        audio_file, speaker_id = get_audio_file_with_speaker_info(self.file_list, index)
+        waveform = dataset_baseline.load_data_pipeline(audio_file, required_sample_rate=self.sample_rate,
+                                                       audio_window=self.audio_window, full_audio=self.full_audio,
+                                                       augmentation=self.augmentation)
+        return waveform, speaker_id

@@ -1,107 +1,47 @@
-import torch
 import torchaudio
-from torch.utils.data import Dataset
-import random
-import numpy as np
-import torchaudio.transforms as T
-import src.utils.interface_audio_io as audio_io
-import src.data.dataset_tool_speaker as speaker_tool
-import src.utils.interface_audio_augmentation as audio_augmentation
+import src.utils.interface_file_io as file_io
+import src.data.dataset_baseline as dataset_baseline
+import natsort
 torchaudio.set_audio_backend("sox_io")
-import torch.nn.functional as F
 
 
-class LibriSpeechWaveformDataset(Dataset):
-    def __init__(self, directory_path, audio_window=20480, sampling_rate=16000, auto_trim=False, full_audio=False,
-                 augmentation=False):
-        self.directory_path = directory_path
-        self.audio_window = audio_window
-        self.sampling_rate = sampling_rate
-        self.auto_trim = auto_trim
-        self.full_audio = full_audio
-        self.augmentation = augmentation
+def get_speaker_dict(speaker_list):
+    speaker_id_dict = {}
+    for idx, key in enumerate(sorted(list(set(speaker_list)))):
+        speaker_id_dict[key] = idx
+    return speaker_id_dict
 
-        self.file_list = []
-        id_data = open(self.directory_path, 'r')
-        # strip() 함수를 사용해서 뒤에 개행을 제거
-        self.file_list = [x.strip() for x in id_data.readlines()]
-        id_data.close()
 
-        self.speaker_list = speaker_tool.get_librispeech_speaker_list(self.file_list)
-        self.speaker_dict = speaker_tool.get_speaker_dict(self.speaker_list)
-        _, self.speaker_align = speaker_tool.get_speaker_align(self.file_list)
+def get_audio_file_with_speaker_info(file_list, index):
+    audio_file = dataset_baseline.get_audio_file(file_list, index)
+    filename = audio_file.split("/")[-1]
+    filename = filename.split(".")[0]  # speaker_id, dir_id, sample_id
+    speaker_id = filename.split("-")[0]
+    return audio_file, filename, speaker_id
 
-        if self.auto_trim:
-            self.vad = T.Vad(sampling_rate)
 
-    def __len__(self):
-        return len(self.file_list)
+# training CPC pretext model
+class LibriSpeechWaveformDataset(dataset_baseline.BaselineWaveformDataset):
+    def __init__(self, directory_path, audio_window=20480, sample_rate=16000, full_audio=False,
+                 augmentation=False, speaker_filelist=None):
+        super().__init__(directory_path, audio_window, sample_rate, full_audio, augmentation)
+        self.speaker_list = natsort.natsorted(file_io.read_txt2list(speaker_filelist))
+        self.speaker_dict = get_speaker_dict(self.speaker_list)
 
     def __getitem__(self, index):
-        audio_file = self.file_list[index]
-        audio_file = audio_file[4:]
-        waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
-        filename = audio_file.split("/")[-1]
-        filename = filename.split(".")[0] # speaker_id, dir_id, sample_id
-        speaker_id = filename.split("-")[0]
-
-        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
-        assert (
-            sampling_rate == self.sampling_rate
-        ), "sampling rate is not consistent throughout the dataset"
-
-        if self.auto_trim:
-            waveform = audio_io.audio_auto_trim(waveform, self.vad, self.audio_window)
-
-        if self.augmentation:
-            waveform = audio_augmentation.audio_augment_baseline(waveform, sampling_rate)
-
-        if not self.full_audio:
-            waveform = audio_io.random_cutoff(waveform, self.audio_window)
-
-        return waveform, str(filename), str(speaker_id)
-
-    def get_audio_by_speaker(self, speaker_id, batch_size):
-        batch_size = min(len(self.speaker_align[speaker_id]), batch_size)
-        batch = torch.zeros(batch_size, 1, self.audio_window)
-        for index in range(batch_size):
-            batch[index, 0, :], _, _ = self.__getitem__(self.speaker_align[speaker_id][index])
-        return batch
+        audio_file, filename, speaker_id = get_audio_file_with_speaker_info(self.file_list, index)
+        waveform = dataset_baseline.load_data_pipeline(audio_file, required_sample_rate=self.sample_rate,
+                                                       audio_window=self.audio_window, full_audio=self.full_audio,
+                                                       augmentation=self.augmentation)
+        return waveform, str(speaker_id)
 
 
 class LibriSpeechWaveformDatasetByBYOL(LibriSpeechWaveformDataset):
     def __getitem__(self, index):
-        # 오디오파일 가져오기
-        audio_file = self.file_list[index]
-        audio_file = audio_file[4:]
-        # 오디오파일 읽기 (loader)
-        waveform, sampling_rate = audio_io.audio_loader("{}".format(audio_file))
-        # speaker_id, sample_id 추출
-        filename = audio_file.split("/")[-1]
-        filename = filename.split(".")[0]  # speaker_id, dir_id, sample_id
-        speaker_id = filename.split("-")[0]
-        augmentation_list = [0, 1, 2, 3]
-
-
-        # sampling rate가 16000가 아니면 에러 메시지를 띄워줄 수 있도록 함
-        assert (
-                sampling_rate == self.sampling_rate
-        ), "sampling rate is not consistent throughout the dataset"
-
-        waveform = audio_io.audio_adjust_length(waveform, self.audio_window)
-        pick_index = np.random.randint(waveform.shape[1] - self.audio_window + 1)
-        if not self.full_audio:
-            aug01_waveform = audio_io.random_cutoff(waveform, self.audio_window, pick_index)
-            aug02_waveform = audio_io.random_cutoff(waveform, self.audio_window, pick_index)
-
-        if self.augmentation:
-            aug01_waveform = audio_augmentation.audio_augmentation_pipeline(aug01_waveform, sampling_rate, self.audio_window,
-                                                                            random.sample(augmentation_list, 3))
-            aug02_waveform = audio_augmentation.audio_augmentation_pipeline(aug02_waveform, sampling_rate, self.audio_window,
-                                                                            random.sample(augmentation_list, 3))
-
-        aug01_waveform = audio_io.audio_adjust_length(aug01_waveform, self.audio_window)
-        aug02_waveform = audio_io.audio_adjust_length(aug02_waveform, self.audio_window)
-
-
+        audio_file, filename, speaker_id = get_audio_file_with_speaker_info(self.file_list, index)
+        aug01_waveform, aug02_waveform = dataset_baseline.load_data_pipeline(audio_file,
+                                                                             required_sample_rate=self.sample_rate,
+                                                                             audio_window=self.audio_window,
+                                                                             full_audio=self.full_audio,
+                                                                             augmentation=self.augmentation)
         return aug01_waveform, aug02_waveform, str(filename), str(speaker_id)

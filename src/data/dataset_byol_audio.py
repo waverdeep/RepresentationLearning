@@ -1,12 +1,21 @@
-import src.data.dataset_normal as normal
+# pytorch library
+import torch
+import torchaudio.transforms as T
+from torch.utils.data import Dataset
+import torch.nn.functional as F
+
+# custom library
 import src.utils.interface_audio_io as audio_io
 import src.utils.interface_audio_augmentation as audio_augmentation
-import torch.nn.functional as F
+import src.data.dataset_baseline as dataset_baseline
+
+# local library
+import numpy as np
 import random
-import torch
 
 
-class ByolAudioDataset(normal.NormalWaveformDataset):
+# training BYOL-Audio pretext model - only byol-audio
+class BYOLAudioDataset(dataset_baseline.BaselineWaveformDataset):
     def __init__(self, directory_path, audio_window=20480, full_audio=False, config=None, use_librosa=True,
                  mode='train'):
         super().__init__(directory_path=directory_path, audio_window=audio_window, full_audio=full_audio)
@@ -55,4 +64,4 @@ class ByolAudioDataset(normal.NormalWaveformDataset):
         else:
             log_mel_spectrogram = (log_mel_spectrogram, log_mel_spectrogram)
 
-        return log_mel_spectrogram, 0, 0
+        return log_mel_spectrogram
