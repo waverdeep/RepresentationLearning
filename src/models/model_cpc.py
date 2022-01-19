@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import json
-import src.losses.loss_baseline as criterion
+import src.losses.criterion_infonce as criterion
 
 
 class CPCModel(nn.Module):

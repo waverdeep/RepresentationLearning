@@ -1,7 +1,7 @@
 import sys
 import torch
 import torch.nn as nn
-import src.models.model_baseline as model_baseline
+import src.models.model_cpc as model_baseline
 import src.losses.criterion as losses
 import src.utils.interface_tensor_manipulation as tensor_manipulation
 import json

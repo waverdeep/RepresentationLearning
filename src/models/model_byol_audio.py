@@ -5,17 +5,19 @@ import torch
 import torch.nn as nn
 import src.losses.criterion as criterion
 
+
 def set_requires_grad(model, requires):
     for parameter in model.parameters():
         parameter.requires_grad = requires
 
 
-class BYOL(nn.Module):
-    def __init__(self, input_dims, hidden_dims, strides, filter_sizes, paddings,
+class BYOLAudio(nn.Module):
+    def __init__(self, config, input_dims, hidden_dims, strides, filter_sizes, paddings,
                  maxpool_filter_sizes, maxpool_strides, feature_dimension,
                  hidden_size, projection_size):
-        super(BYOL, self).__init__()
+        super(BYOLAudio, self).__init__()
         dimension = feature_dimension
+        self.config = config
         # setup online network
         self.online_encoder = EncodingNetwork(
             input_dims, hidden_dims, strides, filter_sizes, paddings,
@@ -28,22 +30,21 @@ class BYOL(nn.Module):
         # loss function
         self.criterion = criterion.byol_criterion
 
-    def get_target_ecnoder(self):
+    def get_target_encoder(self):
         self.target_encoder = copy.deepcopy(self.online_encoder)
         set_requires_grad(self.target_encoder, requires=False)
 
     def get_target_projector(self):
         self.target_projector = copy.deepcopy(self.online_projector)
-        set_requires_grad(self.target_encoder, requires=False)
+        set_requires_grad(self.target_projector, requires=False)
 
     def forward(self, x01, x02):
         if self.target_encoder is None or self.target_projector is None:
-            self.get_target_ecnoder()
+            self.get_target_encoder()
             self.get_target_projector()
 
         online_representation01 = self.online_encoder(x01)
         online_representation02 = self.online_encoder(x02)
-        print(online_representation01.size())
         online_projection01 = self.online_projector(online_representation01)
         online_projection02 = self.online_projector(online_representation02)
         online_prediction01 = self.online_predictor(online_projection01)
@@ -52,14 +53,12 @@ class BYOL(nn.Module):
         with torch.no_grad():
             target_representation01 = self.target_encoder(x01)
             target_representation02 = self.target_encoder(x02)
-            target_projector01 = self.target_projector(target_representation01)
-            target_projector02 = self.target_projector(target_representation02)
-
-        loss01 = self.criterion(online_prediction01, target_projector02.detach())
-        loss02 = self.criterion(online_prediction02, target_projector01.detach())
+            target_projection01 = self.target_projector(target_representation01)
+            target_projection02 = self.target_projector(target_representation02)
+        loss01 = self.criterion(online_prediction01, target_projection02.detach())
+        loss02 = self.criterion(online_prediction02, target_projection01.detach())
         loss = loss01 + loss02
         return online_representation01, loss.mean()
-
 
 
 # dimensions of feature representation
@@ -135,7 +134,7 @@ class PredictionNetwork(nn.Module):
 
 
 if __name__ == '__main__':
-    model = BYOL(
+    model = BYOLAudio(
         input_dims=[1, 64, 64],
         hidden_dims=[64, 64, 64],
         strides=[1, 1, 1],
@@ -145,7 +144,8 @@ if __name__ == '__main__':
         maxpool_strides=[2, 2, 2],
         feature_dimension=2048,
         hidden_size=256,
-        projection_size=4096
+        projection_size=4096,
+        config=None
     )
 
     input_data01 = torch.randn((2, 1, 64, 96))

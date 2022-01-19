@@ -11,7 +11,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 
 class EncoderNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, efficientnet_model_name='efficientnet-b4'):
         super(EncoderNetwork, self).__init__()
         self.network = nn.Sequential(
             collections.OrderedDict(
@@ -20,7 +20,7 @@ class EncoderNetwork(nn.Module):
                 ]
             )
         )
-        self.efficient_network = EfficientNet.from_pretrained('efficientnet-b4')
+        self.efficient_network = EfficientNet.from_pretrained(efficientnet_model_name)
 
     def forward(self, x):
         out = self.network(x)
@@ -28,12 +28,11 @@ class EncoderNetwork(nn.Module):
         return out
 
 
-class WaveBYOLTest03(nn.Module):
+class WaveBYOLEfficient(nn.Module):
     def __init__(self, config, pre_input_dims, pre_hidden_dims, pre_filter_sizes, pre_strides, pre_paddings,
-                 dimension, hidden_size, projection_size, research=True):
-        super(WaveBYOLTest03, self).__init__()
+                 dimension, hidden_size, projection_size, efficientnet_model_name):
+        super(WaveBYOLEfficient, self).__init__()
         self.config = config
-        self.research = research
         self.online_pre_network = model_proposed02.PreNetwork(  # CPC encoder와 동일하게 매칭되는 부분
             input_dim=pre_input_dims,
             hidden_dim=pre_hidden_dims,
@@ -41,7 +40,7 @@ class WaveBYOLTest03(nn.Module):
             strides=pre_strides,
             paddings=pre_paddings,
         )
-        self.online_encoder_network = EncoderNetwork()
+        self.online_encoder_network = EncoderNetwork(efficientnet_model_name=efficientnet_model_name)
         self.online_projector_network = model_proposed02.ProjectionNetwork(dimension, hidden_size, projection_size)
         self.online_predictor_network = model_proposed02.PredictionNetwork(projection_size, hidden_size, projection_size)
 
@@ -107,7 +106,7 @@ class WaveBYOLTest03(nn.Module):
         # shape 변경 (batch, time, frequency * channel)
         online_representation01_reshape = online_representation01_reshape.reshape((B1, T1 * C1 * D1))
         online_representation02_reshape = online_representation02_reshape.reshape((B2, T2 * C2 * D2))
-        # print(online_representation01_reshape.size())
+        print(online_representation01_reshape.size())
         # ** projection과 prediction들어가기 전에 한번더 변환해주어야 함 (아니면 투딤으로 그냥 가버려?)
         # print(online_representation02_reshape.size())
         online_projection01 = self.online_projector_network(online_representation01_reshape)
@@ -146,28 +145,27 @@ class WaveBYOLTest03(nn.Module):
         loss01 = self.criterion(online_prediction01, target_projection02.detach())
         loss02 = self.criterion(online_prediction02, target_projection01.detach())
         loss = loss01 + loss02
-        if self.research:
-            return online_x01_pre, online_x02_pre, online_representation01_output, online_representation02_output, target_x01_pre, target_x02_pre, target_representation01_output, target_representation02_output, loss.mean()
-        else:
-            return online_representation01, online_representation02, target_representation01, target_representation02, loss.mean()
+        online_representation = [(online_x01_pre, online_x02_pre,), (online_representation01_output, online_representation02_output,)]
+        target_representation = [(target_x01_pre, target_x02_pre,), (target_representation01_output, target_representation02_output,)]
+        return online_representation, target_representation, loss.mean()
 
 
 if __name__ == '__main__':
-    test_model = WaveBYOLTest03(
+    test_model = WaveBYOLEfficient(
         config=None,
         pre_input_dims=1,
         pre_hidden_dims=512,
         pre_filter_sizes=[10, 8, 4, 4, 4],
         pre_strides=[5, 4, 2, 2, 2],
         pre_paddings=[2, 2, 2, 2, 1],
-        dimension=122880,
+        dimension=122880, # b4,15200 -> 86016
         hidden_size=256,
-        projection_size=4096
+        projection_size=4096,
+        efficientnet_model_name='efficientnet-b7'
     ).cuda()
     print(test_model)
-
     input_data01 = torch.rand(8, 1, 15200).cuda()
     input_data02 = torch.rand(8, 1, 15200).cuda()
-    online_x01_pre, online_x02_pre, online_representation01_output, online_representation02_output, target_x01_pre, target_x02_pre, target_representation01_output, target_representation02_output, loss = test_model(input_data01, input_data02)
-    print(online_x01_pre.size())
-    print(online_representation01_output.size())
+    online_representation_output, target_representation_output, loss = test_model(input_data01, input_data02)
+    print(online_representation_output[0][0].size())
+    print(online_representation_output[1][0].size())

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torchvision
 import copy
-import src.models.model_baseline as model_baseline
+import src.models.model_cpc as model_baseline
 import src.losses.criterion as losses
 
 
