@@ -2,6 +2,7 @@ import torchaudio
 from torch.utils import data
 import src.data.dataset_librispeech as dataset_librispeech
 import src.data.dataset_byol_audio as dataset_byol_audio
+import src.data.dataset_voxceleb as dataset_voxceleb
 import src.data.dataset_baseline as dataset_baseline
 torchaudio.set_audio_backend("sox_io")
 
@@ -37,6 +38,8 @@ def get_dataloader(config, mode='train'):
         waveform_dataset = dataset_librispeech.LibriSpeechWaveformDataset
     elif dataset_type == 'LibriSpeechWaveformDatasetByBYOL':
         waveform_dataset = dataset_librispeech.LibriSpeechWaveformDatasetByBYOL
+    elif dataset_type == 'VoxCelebWaveformDataset':
+        waveform_dataset = dataset_voxceleb.VoxCelebWaveformDataset
 
     dataset = waveform_dataset(
         file_path=config['{}_dataset'.format(mode)],

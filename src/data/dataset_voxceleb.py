@@ -20,7 +20,7 @@ def get_audio_file_with_speaker_info(file_list, index):
     return audio_file, speaker_id
 
 
-class VoxWaveformDataset(dataset_baseline.BaselineWaveformDataset):
+class VoxCelebWaveformDataset(dataset_baseline.BaselineWaveformDataset):
     def __init__(self, directory_path, audio_window=20480, sample_rate=16000, full_audio=False,
                  augmentation=False, speaker_filelist=None):
         super().__init__(directory_path, audio_window, sample_rate, full_audio, augmentation)
