@@ -10,41 +10,43 @@ import src.utils.interface_file_io as file_io
 import src.utils.interface_audio_io as audio_io
 import random
 
-def audio_augment_baseline(x, sr):
-    random_pitch_shift = lambda: np.random.randint(-500, +500)
-    random_room_size = lambda: np.random.randint(0, 101)
-    noise_generator = lambda: torch.zeros_like(x).uniform_()
 
+def audio_additive_noise(x, sr, audio_window=20480, datalist_path="./dataset/musan-total.txt"):
+    def noise_generator():
+        dataset_path = datalist_path
+        filelist = file_io.read_txt2list(dataset_path)
+        pick = np.random.randint(len(filelist))
+        waveform, sampling_rate = audio_io.audio_loader(filelist[pick][4:])
+        waveform = audio_io.audio_adjust_length(waveform, audio_window)
+        waveform = audio_io.random_cutoff(waveform, audio_window)
+        return waveform[0]
     combination = augment.EffectChain() \
-        .additive_noise(noise_generator, snr=15) \
-        .pitch("-q", random_pitch_shift).rate(sr) \
-        .reverb(50, 50, random_room_size).channels(1) \
-        .time_dropout(max_seconds=0.8)
+        .additive_noise(noise_generator, snr=15)
     y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
     return y
 
 
-def audio_band_reject(x, sr):
+def audio_band_reject(x, sr, audio_window=None):
     combination = augment.EffectChain().sinc('-a', '120', '500-100')
     y = combination.apply(x, src_info={'rate': sr})
     return y
 
 
-def audio_time_dropout(x, sr, max_seconds=0.1):
+def audio_time_dropout(x, sr, max_seconds=0.1, audio_window=None):
     combination = augment.EffectChain().time_dropout(max_seconds=max_seconds)
     y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
     return y
 
 
-def audio_reverb(x, sr):
+def audio_reverb(x, sr, reverb_size=100, audio_window=None):
     random_room_size = lambda: np.random.randint(0, 101)
-    combination = augment.EffectChain().reverb(100, 100, random_room_size).channels(1)
+    combination = augment.EffectChain().reverb(reverb_size, reverb_size, random_room_size).channels(1)
     y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
     return y
 
 
-def audio_pitch_shift(x, sr):
-    random_pitch_shift = lambda: np.random.randint(-500, +500)
+def audio_pitch_shift(x, sr, shift_size=500, audio_window=None):
+    random_pitch_shift = lambda: np.random.randint(-shift_size, +shift_size)
     combination = augment.EffectChain().pitch("-q", random_pitch_shift).rate(sr)
     y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
     return y
@@ -56,45 +58,38 @@ def audio_clipping_audio(x, sr, clipping_rate=0.25):
     return y
 
 
-def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation):
+def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation,fix_audio_length=True):
     pipeline = []
     for pick in pick_augmentation:
         if pick == 0:
             pipeline.append(audio_band_reject)
-        # elif pick == 1:
-        #     pipeline.append(audio_time_dropout)
         elif pick == 1:
-            pipeline.append(audio_reverb)
+            pipeline.append(audio_time_dropout)
         elif pick == 2:
-            pipeline.append(audio_pitch_shift)
-        # elif pick == 4:
-        #     pipeline.append(audio_clipping_audio)
+            pipeline.append(audio_reverb)
         elif pick == 3:
+            pipeline.append(audio_pitch_shift)
+        elif pick == 4:
+            pipeline.append(audio_clipping_audio)
+        elif pick == 5:
             pipeline.append(audio_additive_noise)
 
     for method in pipeline:
-        x = method(x, sr)
-        if len(x[0]) != audio_window:
-            x = audio_io.audio_adjust_length(x, audio_window, True)
+        x = method(x, sr, audio_window)
+        if fix_audio_length:
+            if len(x[0]) != audio_window:
+                x = audio_io.audio_adjust_length(x, audio_window, True)
     return x
 
 
-def noise_generator():
-    dataset_path = "./dataset/musan-total.txt"
-    filelist = file_io.read_txt2list(dataset_path)
-    pick = np.random.randint(len(filelist))
-    waveform, sampling_rate = audio_io.audio_loader(filelist[pick][4:])
-    waveform = audio_io.audio_adjust_length(waveform, 20480)
-    waveform = audio_io.random_cutoff(waveform, 20480)
-    return waveform[0]
+def audio_augmentation_baseline(x, sr=16000, audio_window=20480, fix_audio_length=False):
+    augmentation_list = [0, 2, 3, 5]
+    pick_augmentation = random.sample(augmentation_list, 3)
+    audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation, fix_audio_length)
+    return x
 
 
-def audio_additive_noise(x, sr):
-    combination = augment.EffectChain() \
-        .additive_noise(noise_generator, snr=15)
-    y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
-    return y
-
+########################################################################################################################
 # https://github.com/nttcslab/byol-a
 """BYOL for Audio: Augmentation modules.
 
@@ -153,11 +148,13 @@ class RandomResizeCrop(nn.Module):
         format_string += ', freq_scale={0})'.format(tuple(round(r, 4) for r in self.freq_scale))
         return format_string
 
+
 def log_mixup_exp(xa, xb, alpha):
     xa = xa.exp()
     xb = xb.exp()
     x = alpha * xa + (1. - alpha) * xb
     return torch.log(x + torch.finfo(x.dtype).eps)
+
 
 class MixupBYOLA(nn.Module):
     """Mixup for BYOL-A.
@@ -195,6 +192,7 @@ class MixupBYOLA(nn.Module):
         format_string = self.__class__.__name__ + f'(ratio={self.ratio},n={self.n}'
         format_string += f',log_mixup_exp={self.log_mixup_exp})'
         return format_string
+
 
 class MixGaussianNoise():
     """Gaussian Noise Mixer.

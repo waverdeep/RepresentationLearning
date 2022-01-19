@@ -28,7 +28,7 @@ def make_audio_filelist():
 
 
 if __name__ == '__main__':
-    task = "train_test_split"
+    task = "FSD50k"
     if task == "train_test_split":
         # make_train_test_file('../../dataset/urbansound-20480.txt',
         #                      '../../dataset/train-urbansound-20480.txt',
@@ -36,13 +36,27 @@ if __name__ == '__main__':
         # make_train_test_file('../../dataset/librispeech360-20480.txt',
         #                      '../../dataset/train-librispeech360-20480.txt',
         #                      '../../dataset/test-librispeech360-20480.txt')
-        make_train_test_file('../../dataset/kspon-20480.txt',
-                             '../../dataset/train-kspon-20480.txt',
-                             '../../dataset/test-kspon-20480.txt')
-
+        # make_train_test_file('../../dataset/kspon-20480.txt',
+        #                      '../../dataset/train-kspon-20480.txt',
+        #                      '../../dataset/test-kspon-20480.txt')
+        # make_train_test_file('../../dataset/vox01-20480.txt',
+        #                      '../../dataset/train-vox01-20480.txt',
+        #                      '../../dataset/test-vox01-20480.txt')
+        make_train_test_file('../../dataset/speaker_recognition-train-20480.txt',
+                             '../../dataset/speaker_recognition-train_part-20480.txt',
+                             '../../dataset/speaker_recognition-test_part-20480.txt')
     elif task == "make_cpc_paper_train_test_file":
         # print("start converting ... ")
         # get_other_split('../../dataset/train_split.txt', '../../dataset/train-clean-original.txt')
         # get_other_split('../../dataset/test_split.txt', '../../dataset/test-clean-original.txt')
-        # print("finish ...")
-        pass
+        print("finish ...")
+
+    elif task == "FSD50k":
+        make_train_test_file('../../dataset/FSD50K.txt',
+                             '../../dataset/FSD50K-train.txt',
+                             '../../dataset/FSD50K-test.txt')
+
+    elif task == 'musan':
+        make_train_test_file('../../dataset/musan-total.txt',
+                             '../../dataset/musan-train.txt',
+                             '../../dataset/musan-test.txt')

@@ -38,6 +38,7 @@ def print_model_description(description="pretext", format_logger=None, model=Non
 def setup_config(configuration):
     return file_io.load_json_config(configuration)
 
+
 def setup_distributed_learning(config, format_logger):
     pass
 
@@ -50,9 +51,15 @@ def make_target(speaker_id, speaker_dict):
 
 
 def save_checkpoint(config, model, optimizer, loss, epoch, format_logger, mode="best", date=""):
+    if not os.path.exists(os.path.join(config['checkpoint_save_directory_path'], config['checkpoint_file_name'])):
+        file_io.make_directory(os.path.join(config['checkpoint_save_directory_path'], config['checkpoint_file_name']))
+    base_directory = os.path.join(config['checkpoint_save_directory_path'], config['checkpoint_file_name'])
     if mode == "best":
-        file_path = os.path.join(config['checkpoint_save_directory_path'],
-                                 config['checkpoint_file_name'] + "-model-best-{}.pt".format(date))
+        file_path = os.path.join(base_directory,
+                                 config['checkpoint_file_name'] + "-model-best-{}-epoch-{}.pt".format(date, epoch))
+    elif mode == 'step':
+        file_path = os.path.join(base_directory,
+                                 config['checkpoint_file_name'] + "-model-{}-epoch-{}.pt".format(date, epoch))
 
     torch.save({
         "model_state_dict": model.state_dict(),
