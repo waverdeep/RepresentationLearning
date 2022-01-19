@@ -5,6 +5,13 @@ import matplotlib.pyplot as plt
 import torch
 import librosa
 import numpy as np
+import json
+import src.models.model_proposed01 as model_proposed
+import src.utils.interface_file_io as file_io
+import src.utils.interface_audio_augmentation as audio_augmentation
+import torchaudio
+import torchaudio.datasets as datasets
+from torch.utils import data
 
 
 def plot_spectrogram(spec, title=None, ylabel='freq_bin', aspect='auto', xmax=None):
@@ -20,57 +27,17 @@ def plot_spectrogram(spec, title=None, ylabel='freq_bin', aspect='auto', xmax=No
 
 
 if __name__ == '__main__':
-    speaker_list_file = open("./dataset/speaker_recognition-train-20480.txt", 'r')
-    speaker_file_list = [x.strip() for x in speaker_list_file.readlines()]
+    # print(len(file_io.read_txt2list('./dataset/librispeech100-baseline-test.txt')))
+    # sample = torch.rand(1, 20480)
+    # audio_augmentation.audio_additive_noise(sample, 16000)
 
-    n_fft = 2048
-    win_length = None
-    hop_length = 512
-    n_mels = 256
-    n_mfcc = 256
-    waveform, sample_rate = torchaudio.load(speaker_file_list[0][4:])
-    waveform = waveform[:, :20480]
+    command_dataset = datasets.SPEECHCOMMANDS(root='./dataset', download=True)
+    command_dataloader = data.DataLoader(command_dataset, shuffle=True)
+    dataiter = iter(command_dataloader)
+    waveform, sample_rate, label, speaker_id, utterance_number = dataiter.next()
     print(waveform.size())
-    mfcc_transform = T.MFCC(
-        sample_rate=sample_rate,
-        n_mfcc=n_mfcc,
-        melkwargs={
-            'n_fft': n_fft,
-            'n_mels': n_mels,
-            'hop_length': hop_length,
-        }
-    )
+    print(sample_rate)
+    print(label)
+    print(speaker_id)
+    print(utterance_number)
 
-    mfcc = mfcc_transform(waveform)
-    plot_spectrogram(mfcc[0])
-
-    vad = T.Vad(16000)
-    waveform, sample_rate = torchaudio.load(speaker_file_list[0][4:])
-    waveform = vad(waveform)
-    waveform = torch.flip(waveform, [0, 1])
-    waveform = vad(waveform)
-    waveform = torch.flip(waveform, [0, 1])
-    while True:
-        audio_length = waveform.shape[1]
-        if audio_length < 20840:
-            waveform = torch.cat((waveform, waveform), 1)
-        else:
-            break
-    print(waveform.size())
-    audio_length = waveform.shape[1]
-    random_index = np.random.randint(audio_length - 20840 + 1)
-    waveform = waveform[:, random_index: random_index + 20840]
-    mfcc_transform = T.MFCC(
-        sample_rate=sample_rate,
-        n_mfcc=n_mfcc,
-        melkwargs={
-            'n_fft': n_fft,
-            'n_mels': n_mels,
-            'hop_length': hop_length,
-            'mel_scale': 'htk',
-        }
-    )
-
-    mfcc = mfcc_transform(waveform)
-    print(mfcc.size())
-    plot_spectrogram(mfcc[0])
