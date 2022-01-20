@@ -30,9 +30,9 @@ if __name__ == '__main__':
     # print(len(file_io.read_txt2list('./dataset/librispeech100-baseline-test.txt')))
     # sample = torch.rand(1, 20480)
     # audio_augmentation.audio_additive_noise(sample, 16000)
-
+    datasets.SPEECHCOMMANDS()
     command_dataset = datasets.SPEECHCOMMANDS(root='./dataset', download=True)
-    command_dataloader = data.DataLoader(command_dataset, shuffle=True)
+    command_dataloader = data.DataLoader(command_dataset, shuffle=True, batch_size=2)
     dataiter = iter(command_dataloader)
     waveform, sample_rate, label, speaker_id, utterance_number = dataiter.next()
     print(waveform.size())
