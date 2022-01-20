@@ -4,19 +4,10 @@ import src.utils.interface_file_io as file_io
 import natsort
 
 
-def get_speaker_list(file_list):
-    speaker_list = []
-    for index, file in enumerate(file_list):
-        temp = file.split('/')
-        speaker_id = temp[5][2:]
-        speaker_list.append(speaker_id)
-    return speaker_list
-
-
 def get_audio_file_with_speaker_info(file_list, index):
     audio_file = dataset_baseline.get_audio_file(file_list, index)
     temp = audio_file.split('/')
-    speaker_id = temp[5][2:]
+    speaker_id = temp[4]
     return audio_file, speaker_id
 
 
