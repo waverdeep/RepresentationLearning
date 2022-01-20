@@ -8,7 +8,7 @@ import natsort
 def get_acoustic_dict(acoustic_list):
     acoustic_dict = {}
     for idx, key in enumerate(acoustic_list):
-        acoustic_dict['key'] = idx
+        acoustic_dict[str(key)] = idx
     return acoustic_dict
 
 
@@ -39,13 +39,11 @@ class UrbanSound8KWaveformDataset(dataset_baseline.BaselineWaveformDataset):
 
     def __getitem__(self, index):
         audio_file, filename, acoustic_id = get_audio_file_with_acoustic_info(self.file_list, index)
-        cutting_bound = search_cutting_boundary(self.metadata, filename)
+        cutting_bound = None
+        if self.metadata is not None:
+            cutting_bound = search_cutting_boundary(self.metadata, filename)
         waveform = dataset_baseline.load_data_pipeline(audio_file, required_sample_rate=self.sample_rate,
                                                        audio_window=self.audio_window, full_audio=self.full_audio,
                                                        augmentation=self.augmentation, cut_silence=cutting_bound)
-
-        waveform = dataset_baseline.load_data_pipeline(audio_file, required_sample_rate=self.sample_rate,
-                                                       audio_window=self.audio_window, full_audio=self.full_audio,
-                                                       augmentation=self.augmentation)
         return waveform, str(acoustic_id)
 
