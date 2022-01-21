@@ -19,34 +19,41 @@ def get_audio_file(file_list, index):
     return audio_file
 
 
-def load_data_pipeline(audio_file, required_sample_rate, audio_window, full_audio, augmentation):
+def load_data_pipeline(audio_file, required_sample_rate, audio_window, full_audio, augmentation, cut_silence=None):
     waveform, sample_rate = audio_io.audio_loader("{}".format(audio_file))
+
+    if cut_silence is not None:
+        waveform = audio_io.cutoff(waveform, sample_rate, cut_silence[0], cut_silence[1])
 
     assert (
             sample_rate == required_sample_rate
     ), "sampling rate is not consistent throughout the dataset"
+    waveform = audio_io.audio_adjust_length(waveform, audio_window)
 
     if not full_audio:
         waveform = audio_io.random_cutoff(waveform, audio_window)
     if augmentation:
-        waveform = audio_augmentation.audio_augmentation_baseline(waveform, sample_rate)
+        waveform = audio_augmentation.audio_augmentation_baseline(waveform, sample_rate, audio_window)
     if not full_audio:
         waveform = audio_io.audio_adjust_length(waveform, audio_window)
     return waveform
 
 
-def load_data_pipeline_by_byol(audio_file, required_sample_rate, audio_window, full_audio, augmentation):
+def load_data_pipeline_by_byol(audio_file, required_sample_rate, audio_window, full_audio, augmentation,
+                               cut_silence=None):
     waveform, sample_rate = audio_io.audio_loader("{}".format(audio_file))
+
+    if cut_silence is not None:
+        waveform = audio_io.cutoff(waveform, sample_rate, cut_silence[0], cut_silence[1])
 
     assert (
             sample_rate == required_sample_rate
     ), "sampling rate is not consistent throughout the dataset"
 
     augmentation_list = [0, 2, 3, 5]
-    pick_index = np.random.randint(waveform.shape[1] - audio_window + 1)
     # audio 길이 맞추기
     waveform = audio_io.audio_adjust_length(waveform, audio_window)
-
+    pick_index = np.random.randint(waveform.shape[1] - audio_window + 1)
     if not full_audio:
         aug01_waveform = audio_io.random_cutoff(waveform, audio_window, pick_index)
         aug02_waveform = audio_io.random_cutoff(waveform, audio_window, pick_index)
@@ -96,7 +103,8 @@ class BaselineWaveformDataset(Dataset):
 class BaselineWaveformDatasetByBYOL(BaselineWaveformDataset):
     def __getitem__(self, index):
         audio_file = get_audio_file(self.file_list, index)
-        aug01_waveform, aug02_waveform = load_data_pipeline(audio_file, required_sample_rate=self.sample_rate,
-                                                            audio_window=self.audio_window, full_audio=self.full_audio,
-                                                            augmentation=self.augmentation)
+        aug01_waveform, aug02_waveform = load_data_pipeline_by_byol(audio_file, required_sample_rate=self.sample_rate,
+                                                                    audio_window=self.audio_window,
+                                                                    full_audio=self.full_audio,
+                                                                    augmentation=self.augmentation)
         return aug01_waveform, aug02_waveform
