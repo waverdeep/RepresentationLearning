@@ -32,9 +32,18 @@ def add_dataset_figure(writer, dataloader, desc="Train", epoch=0):
     writer.add_figure('Visualize{}'.format(desc), fig, epoch)
     plt.close()
 
+def add_dataset_figure_by_byol(writer, dataloader, desc="Train", epoch=0):
+    dataiter = iter(dataloader)
+    waveform01, waveform02 = dataiter.next()
+    fig = plt.figure()
+    plt.plot(waveform01[0].t().numpy(), alpha=0.5)
+    plt.plot(waveform02[0].t().numpy(), alpha=0.5)
+    plt.title("sample waveform visualization")
+    writer.add_figure('Visualize{}'.format(desc), fig, epoch)
+    plt.close()
+
 
 def add_latent_heatmap(writer, data, title, desc, epoch):
-    fig = plt.figure()
     fig = plt.figure()
     ax1 = fig.add_subplot(1, 1, 1)
     ax1.matshow(data)
