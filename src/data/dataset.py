@@ -44,7 +44,7 @@ def get_dataloader(config, mode='train'):
     dataset = waveform_dataset(
         file_path=config['{}_dataset'.format(mode)],
         audio_window=config['audio_window'],
-        sample_rate=config['augmentation'],
+        sample_rate=config['sampling_rate'],
         full_audio=config['full_audio'],
         augmentation=config['{}_augmentation'.format(mode)]
     )
