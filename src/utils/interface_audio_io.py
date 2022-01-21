@@ -16,6 +16,11 @@ def audio_loader(audio_file):
     return torchaudio.load(audio_file)
 
 
+def cutoff(waveform, sample_rate, start, end):
+    cut = waveform[0][int(start*sample_rate): int(end*sample_rate)]
+    return cut.unsqueeze(0)
+
+
 def random_cutoff(waveform, audio_window, index=None):
     audio_length = waveform.shape[1]
     if index is None:
