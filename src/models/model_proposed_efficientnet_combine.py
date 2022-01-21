@@ -106,7 +106,7 @@ class WaveBYOLEfficient(nn.Module):
         # shape 변경 (batch, time, frequency * channel)
         online_representation01_reshape = online_representation01_reshape.reshape((B1, T1 * C1 * D1))
         online_representation02_reshape = online_representation02_reshape.reshape((B2, T2 * C2 * D2))
-        print(online_representation01_reshape.size())
+        # print(online_representation01_reshape.size())
         # ** projection과 prediction들어가기 전에 한번더 변환해주어야 함 (아니면 투딤으로 그냥 가버려?)
         # print(online_representation02_reshape.size())
         online_projection01 = self.online_projector_network(online_representation01_reshape)

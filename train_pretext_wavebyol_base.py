@@ -11,13 +11,13 @@ import src.optimizers.optimizer as optimizers
 import src.utils.interface_audio_augmentation as audio_augmentation
 import src.optimizers.ExponentialMovingAverage as ema
 import src.losses.criterion_metrics as metrics
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 def main():
     # Configuration 불러오기
     parser = argparse.ArgumentParser(description='waverdeep - waveBYOL proposed')
     parser.add_argument('--configuration', required=False,
-                        default='./config/config-pretext-WAVEBYOLTest03-librispeech100-15200.json')
+                        default='./config/config-pretext-WaveBYOLEfficientB4-FSD50K-15200.json')
     args = parser.parse_args()
     now = train_tool.setup_timestamp()
 
@@ -85,7 +85,7 @@ def train(config, writer, epoch, model, train_loader, optimizer):
     model.train()
     total_loss = 0.0
     target_ema = ema.EMA(config['ema_decay'])
-    tensorboard.add_dataset_figure(writer, train_loader, "Train", epoch)
+    tensorboard.add_dataset_figure_by_byol(writer, train_loader, "Train", epoch)
     for batch_idx, (waveform01, waveform02) in enumerate(train_loader):
         if config['use_cuda']:
             data01 = waveform01.cuda()
@@ -136,7 +136,8 @@ def train(config, writer, epoch, model, train_loader, optimizer):
     ema.update_moving_average(target_ema, model.target_encoder_network, model.online_encoder_network)
     ema.update_moving_average(target_ema, model.target_projector_network, model.online_projector_network)
 
-    conv1d, conv2d = 0
+    conv1d = 0
+    conv2d = 0
     for idx, layer in enumerate(model.modules()):
         if isinstance(layer, torch.nn.Conv1d):
             writer.add_histogram("Conv1d/weights-{}".format(conv1d), layer.weight,
@@ -156,7 +157,7 @@ def train(config, writer, epoch, model, train_loader, optimizer):
 def test(config, writer, epoch, model, test_loader):
     model.eval()
     total_loss = 0.0
-    tensorboard.add_dataset_figure(writer, test_loader, "Test", epoch)
+    tensorboard.add_dataset_figure_by_byol(writer, test_loader, "Test", epoch)
     with torch.no_grad():
         for batch_idx, (waveform01, waveform02) in enumerate(test_loader):
             if config['use_cuda']:
@@ -202,3 +203,5 @@ def test(config, writer, epoch, model, test_loader):
         return total_loss
 
 
+if __name__ == '__main__':
+    main()

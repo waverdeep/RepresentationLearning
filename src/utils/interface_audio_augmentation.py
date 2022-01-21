@@ -75,7 +75,7 @@ def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation,fix_audio
             pipeline.append(audio_additive_noise)
 
     for method in pipeline:
-        x = method(x, sr, audio_window)
+        x = method(x=x, sr=sr, audio_window=audio_window)
         if fix_audio_length:
             if len(x[0]) != audio_window:
                 x = audio_io.audio_adjust_length(x, audio_window, True)

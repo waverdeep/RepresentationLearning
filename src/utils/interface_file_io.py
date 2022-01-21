@@ -13,6 +13,7 @@ def read_csv_file(filename):
     return dataset
 
 
+
 def get_pure_filename(filename):
     temp = filename.split('.')
     del temp[-1]

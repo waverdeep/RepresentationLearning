@@ -3,24 +3,24 @@ import json
 configuration = {
     # definition
     "use_cuda": True,
-    "audio_window": 15200, # 20480
+    "audio_window": 15200, # 20480 # 15200
     "sampling_rate": 16000,
     "epoch": 800,
-    "batch_size": 16,
+    "batch_size": 48,
     "learning_rate": 0.0003,
 
     # dataset
     "dataset_type": "BaselineWaveformDatasetByBYOL",
-    "dataset_name": "librispeech100",
-    "train_dataset": "./dataset/librispeech100-baseline-train.txt",
-    "test_dataset": "./dataset/librispeech100-baseline-test.txt",
+    "dataset_name": "FSD50K",
+    "train_dataset": "./dataset/FSD50K-train.txt",
+    "test_dataset": "./dataset/FSD50K-test.txt",
     "train_augmentation": True,
-    "test_augmentation": False,
+    "test_augmentation": True,
     "full_audio": False,
     "use_librosa": True,
 
     # dataloader
-    "num_workers": 12,
+    "num_workers": 8,
     "dataset_shuffle": True,
     "pin_memory": False,
 
@@ -45,6 +45,7 @@ configuration = {
     "checkpoint_save_directory_path": "./checkpoint",
 }
 
+
 if __name__ == '__main__':
     name = "pretext-{}-{}-{}".format(
         configuration['pretext_model_name'],
@@ -53,8 +54,8 @@ if __name__ == '__main__':
     )
 
     configuration["log_filename"] = "./log/{}".format(name)
-    configuration["tensorboard_writer_name"]: "./runs/{}".format(name)
-    configuration["checkpoint_file_name"]: "{}".format(name)
+    configuration["tensorboard_writer_name"] = "./runs/{}".format(name)
+    configuration["checkpoint_file_name"] = "{}".format(name)
 
     filename = 'config-{}.json'.format(name)
     with open('./{}'.format(filename), 'w', encoding='utf-8') as config_file:
