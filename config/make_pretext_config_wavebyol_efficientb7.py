@@ -5,22 +5,22 @@ configuration = {
     "use_cuda": True,
     "audio_window": 20480, # 20480 # 15200
     "sampling_rate": 16000,
-    "epoch": 800,
-    "batch_size": 6,
+    "epoch": 500,
+    "batch_size": 18,
     "learning_rate": 0.0003,
 
     # dataset
     "dataset_type": "BaselineWaveformDatasetByBYOL",
-    "dataset_name": "librispeech100",
-    "train_dataset": "./dataset/librispeech100-baseline-train.txt",
-    "test_dataset": "./dataset/librispeech100-baseline-test.txt",
+    "dataset_name": "FSD50K",
+    "train_dataset": "./dataset/FSD50K-train.txt",
+    "test_dataset": "./dataset/FSD50K-test.txt",
     "train_augmentation": True,
     "test_augmentation": True,
     "full_audio": False,
     "use_librosa": True,
 
     # dataloader
-    "num_workers": 8,
+    "num_workers": 16,
     "dataset_shuffle": True,
     "pin_memory": False,
 
@@ -32,12 +32,12 @@ configuration = {
     "pre_strides": [5, 4, 2, 2, 2],
     "pre_paddings": [2, 2, 2, 2, 1],
     "dimension": 163840, # 15200: 122880 # 20480: 163840
-    "hidden_size": 2048, # 512
-    "projection_size": 2048, # 4096
+    "hidden_size": 512, # 512
+    "projection_size": 4096, # 4096
     "ema_decay": 0.99,
     # optimizer
     "optimizer_name": "Adam",
-    "weight_decay": 0,
+    "weight_decay": 0.9,
     "eps": 1e-08,
     "amsgrad": False,
     "betas": (0.9, 0.999),

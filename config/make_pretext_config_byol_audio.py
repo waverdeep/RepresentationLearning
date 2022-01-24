@@ -8,7 +8,7 @@ configuration = {
     "use_cuda": True,
     "audio_window": 15200,
     "sampling_rate": 16000,
-    "epoch": 800,
+    "epoch": 500,
     "batch_size": 512,
     "learning_rate": 0.0003,
     # dataset
@@ -45,7 +45,7 @@ configuration = {
     "shape": [64, 96],
     # optimizer
     "optimizer_name": "Adam",
-    "weight_decay": 0,
+    "weight_decay": 0.99,
     "eps": 1e-08,
     "amsgrad": False,
     "betas": (0.9, 0.999),

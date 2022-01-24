@@ -3,10 +3,10 @@ import json
 configuration = {
     # definition
     "use_cuda": True,
-    "audio_window": 15200, # 20480 # 15200
+    "audio_window": 20480, # 20480 # 15200
     "sampling_rate": 16000,
-    "epoch": 800,
-    "batch_size": 48,
+    "epoch": 500,
+    "batch_size": 36,
     "learning_rate": 0.0003,
 
     # dataset
@@ -20,7 +20,7 @@ configuration = {
     "use_librosa": True,
 
     # dataloader
-    "num_workers": 8,
+    "num_workers": 16,
     "dataset_shuffle": True,
     "pin_memory": False,
 
@@ -31,13 +31,13 @@ configuration = {
     "pre_filter_sizes": [10, 8, 4, 4, 4],
     "pre_strides": [5, 4, 2, 2, 2],
     "pre_paddings": [2, 2, 2, 2, 1],
-    "dimension": 86016, # 15200: 86016 # 20480: 114688
+    "dimension": 114688, # 15200: 86016 # 20480: 114688
     "hidden_size": 512,
     "projection_size": 4096,
     "ema_decay": 0.99,
     # optimizer
     "optimizer_name": "Adam",
-    "weight_decay": 0,
+    "weight_decay": 0.9,
     "eps": 1e-08,
     "amsgrad": False,
     "betas": (0.9, 0.999),
