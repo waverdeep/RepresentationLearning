@@ -1,5 +1,6 @@
 import torch.optim as optimizer
 import torch.optim.lr_scheduler as scheduler
+from adamp import AdamP
 
 
 def get_optimizer(model_parameter, config):
@@ -20,6 +21,13 @@ def get_optimizer(model_parameter, config):
                              dampening=config['dampening'],
                              weight_decay=config['weight_decay'],
                              nesterov=config['nesterov'])
+
+    elif optimizer_name == 'AdamP':
+        return AdamP(model_parameter,
+                     lr=config['learning_rate'],
+                     betas=config['betas'],
+                     weight_decay=config['weight_decay'],)
+
 
 
 def get_scheduler(name, wrapped_optimizer, optimizer_param):
