@@ -58,6 +58,15 @@ def audio_clipping_audio(x, sr, clipping_rate=0.25):
     return y
 
 
+def audio_speed(x, sr, rate=None):
+    if rate is not None:
+        effects = [['speed', str(rate)]]
+    else:
+        random = []
+        effects = [['speed', ]]
+    torchaudio.sox_effects.apply_effects_tensor(x, sr, effects)
+
+
 def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation,fix_audio_length=True):
     pipeline = []
     for pick in pick_augmentation:
