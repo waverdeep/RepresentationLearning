@@ -10,6 +10,7 @@ torchaudio.set_audio_backend("sox_io")
 
 def get_dataloader(config, mode='train'):
     dataset_type = config['dataset_type']
+    waveform_dataset = None
 
     if dataset_type == 'BYOLAudioDataset':
         dataset = dataset_byol_audio.BYOLAudioDataset(
