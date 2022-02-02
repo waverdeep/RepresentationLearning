@@ -58,13 +58,15 @@ def audio_clipping_audio(x, sr, clipping_rate=0.25):
     return y
 
 
-def audio_speed(x, sr, rate=None):
+def audio_speed(x, sr, audio_window=None, rate=None):
     if rate is not None:
         effects = [['speed', str(rate)]]
     else:
-        random = []
-        effects = [['speed', ]]
-    torchaudio.sox_effects.apply_effects_tensor(x, sr, effects)
+        random_rate = [0.9, 0.8, 0.7]
+        picked = random.sample(random_rate, 1)[0]
+        effects = [['speed', str(picked)]]
+    waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(x, sr, effects)
+    return waveform
 
 
 def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation,fix_audio_length=True):
@@ -82,6 +84,8 @@ def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation,fix_audio
             pipeline.append(audio_clipping_audio)
         elif pick == 5:
             pipeline.append(audio_additive_noise)
+        elif pick == 6:
+            pipeline.append(audio_speed)
 
     for method in pipeline:
         x = method(x=x, sr=sr, audio_window=audio_window)
@@ -91,8 +95,11 @@ def audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation,fix_audio
     return x
 
 
-def audio_augmentation_baseline(x, sr=16000, audio_window=20480, fix_audio_length=False):
-    augmentation_list = [0, 2, 3, 5]
+def audio_augmentation_baseline(x, sr=16000, audio_window=20480, fix_audio_length=False, custom_augmentation_list = None):
+    if custom_augmentation_list is not None:
+        augmentation_list = custom_augmentation_list
+    else:
+        augmentation_list = [0, 2, 3, 5, 6]
     pick_augmentation = random.sample(augmentation_list, 3)
     audio_augmentation_pipeline(x, sr, audio_window, pick_augmentation, fix_audio_length)
     return x
