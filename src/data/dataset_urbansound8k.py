@@ -28,7 +28,7 @@ def search_cutting_boundary(metadata, filename):
 # num_classes = 10
 class UrbanSound8KWaveformDataset(dataset_baseline.BaselineWaveformDataset):
     def __init__(self, file_path: str, audio_window=20480, sample_rate=16000, full_audio=False, augmentation=False,
-                 metadata=None):
+                 metadata="./dataset/UrbanSound8K/metadata/UrbanSound8K.csv"):
         super().__init__(file_path=file_path, audio_window=audio_window, sample_rate=sample_rate, full_audio=full_audio,
                          augmentation=augmentation)
         self.metadata = None
@@ -44,6 +44,7 @@ class UrbanSound8KWaveformDataset(dataset_baseline.BaselineWaveformDataset):
             cutting_bound = search_cutting_boundary(self.metadata, filename)
         waveform = dataset_baseline.load_data_pipeline(audio_file, required_sample_rate=self.sample_rate,
                                                        audio_window=self.audio_window, full_audio=self.full_audio,
-                                                       augmentation=self.augmentation, cut_silence=cutting_bound)
+                                                       augmentation=self.augmentation, cut_silence=cutting_bound,
+                                                       custom_augmentation_list=[0, 2, 3, 6])
         return waveform, str(acoustic_id)
 
