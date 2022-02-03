@@ -3,10 +3,10 @@ import json
 configuration = {
     # definition
     "use_cuda": True,
-    "audio_window": 15200, # 20480 # 15200
+    "audio_window": 20480, # 20480 # 15200
     "sampling_rate": 16000,
     "epoch": 500,
-    "batch_size": 18,
+    "batch_size": 64,
     "learning_rate": 0.0003,
 
     # dataset
@@ -25,31 +25,33 @@ configuration = {
     "pin_memory": False,
 
     # model
-    "pretext_model_name": "WaveBYOLEfficientB7",
+    "pretext_model_name": "WaveBYOLEfficientB0",
     "pre_input_dims": 1,
     "pre_hidden_dims": 512,
     "pre_filter_sizes": [10, 8, 4, 4, 4],
     "pre_strides": [5, 4, 2, 2, 2],
     "pre_paddings": [2, 2, 2, 2, 1],
-    "dimension": 64, # 15200: 122880 # 20480: 163840
-    "hidden_size": 512, # 512
-    "projection_size": 4096, # 4096
-    "ema_decay": 0.99,
+    "dimension": 64, # 15200: 40960 # 20480: 81920
+    "hidden_size": 2048,
+    "projection_size": 4096,
+    "ema_decay": 0.6,
     # optimizer
-    "optimizer_name": "AdamP", # Adam # AdamP
-    "weight_decay": 1e-2, # 0 # 1e-2
+    "optimizer_name": "AdamP",
+    "weight_decay": 1e-2,
     "eps": 1e-08,
     "amsgrad": False,
-    "betas": (0.9, 0.999), # (0.9, 0.999) # (0.9, 0.999)
+    "betas": (0.9, 0.999),
     # checkpoint
     "checkpoint_save_directory_path": "./checkpoint",
 }
 
+
 if __name__ == '__main__':
-    name = "pretext-{}-{}-{}".format(
+    name = "pretext-{}-{}-{}-{}".format(
         configuration['pretext_model_name'],
         configuration['dataset_name'],
-        configuration['audio_window']
+        configuration['audio_window'],
+        configuration['hidden_size']
     )
 
     configuration["log_filename"] = "./log/{}".format(name)

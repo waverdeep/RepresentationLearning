@@ -15,7 +15,7 @@ configuration = {
     "train_dataset": "./dataset/FSD50K-train.txt",
     "test_dataset": "./dataset/FSD50K-test.txt",
     "train_augmentation": True,
-    "test_augmentation": True,
+    "test_augmentation": False,
     "full_audio": False,
     "use_librosa": True,
 
@@ -31,13 +31,13 @@ configuration = {
     "pre_filter_sizes": [10, 8, 4, 4, 4],
     "pre_strides": [5, 4, 2, 2, 2],
     "pre_paddings": [2, 2, 2, 2, 1],
-    "dimension": 114688, # 15200: 86016 # 20480: 114688
-    "hidden_size": 512,
+    "dimension": 64, # 15200: 86016 # 20480: 114688
+    "hidden_size": 2048, # 512
     "projection_size": 4096,
-    "ema_decay": 0.99,
+    "ema_decay": 0.6,
     # optimizer
-    "optimizer_name": "Adam",
-    "weight_decay": 0.9,
+    "optimizer_name": "AdamP",
+    "weight_decay": 1e-2,
     "eps": 1e-08,
     "amsgrad": False,
     "betas": (0.9, 0.999),
@@ -47,10 +47,11 @@ configuration = {
 
 
 if __name__ == '__main__':
-    name = "pretext-{}-{}-{}".format(
+    name = "pretext-{}-{}-{}-{}".format(
         configuration['pretext_model_name'],
         configuration['dataset_name'],
-        configuration['audio_window']
+        configuration['audio_window'],
+        configuration['hidden_size']
     )
 
     configuration["log_filename"] = "./log/{}".format(name)
