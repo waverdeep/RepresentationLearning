@@ -21,7 +21,7 @@ def audio_additive_noise(x, sr, audio_window=20480, datalist_path="./dataset/mus
         waveform = audio_io.random_cutoff(waveform, audio_window)
         return waveform[0]
     combination = augment.EffectChain() \
-        .additive_noise(noise_generator, snr=15)
+        .additive_noise(noise_generator, snr=np.random.randint(15)+5)
     y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
     return y
 
@@ -39,8 +39,8 @@ def audio_time_dropout(x, sr, max_seconds=0.1, audio_window=None):
 
 
 def audio_reverb(x, sr, reverb_size=100, audio_window=None):
-    random_room_size = lambda: np.random.randint(0, 101)
-    combination = augment.EffectChain().reverb(reverb_size, reverb_size, random_room_size).channels(1)
+    random_room_size = lambda: np.random.randint(0, 100)
+    combination = augment.EffectChain().reverb(random_room_size, random_room_size, random_room_size).channels(1)
     y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
     return y
 
@@ -52,8 +52,8 @@ def audio_pitch_shift(x, sr, shift_size=500, audio_window=None):
     return y
 
 
-def audio_clipping_audio(x, sr, clipping_rate=0.25):
-    combination = augment.EffectChain().clip(clipping_rate)
+def audio_clipping_audio(x, sr, clipping_rate=0.25, audio_window=None):
+    combination = augment.EffectChain().clip(np.random.rand())
     y = combination.apply(x, src_info={'rate': sr})
     return y
 
