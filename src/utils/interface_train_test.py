@@ -28,7 +28,7 @@ def make_audio_filelist():
 
 
 if __name__ == '__main__':
-    task = "FSD50k"
+    task = "voxceleb"
     if task == "train_test_split":
         # make_train_test_file('../../dataset/urbansound-20480.txt',
         #                      '../../dataset/train-urbansound-20480.txt',
@@ -60,3 +60,8 @@ if __name__ == '__main__':
         make_train_test_file('../../dataset/musan-total.txt',
                              '../../dataset/musan-train.txt',
                              '../../dataset/musan-test.txt')
+
+    elif task == 'voxceleb':
+        make_train_test_file('../../dataset/voxceleb01-20480.txt',
+                             '../../dataset/voxceleb01-train.txt',
+                             '../../dataset/voxceleb01-test.txt')

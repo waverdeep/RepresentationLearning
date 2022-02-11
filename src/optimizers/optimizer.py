@@ -24,9 +24,9 @@ def get_optimizer(model_parameter, config):
 
     elif optimizer_name == 'AdamP':
         return AdamP(model_parameter,
-                     lr=config['learning_rate'],
-                     betas=config['betas'],
-                     weight_decay=config['weight_decay'],)
+                     lr=config['learning_rate'],)
+                     # betas=config['betas'],
+                     # weight_decay=config['weight_decay'],)
 
 
 

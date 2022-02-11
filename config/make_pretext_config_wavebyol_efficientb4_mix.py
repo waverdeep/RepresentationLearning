@@ -3,11 +3,11 @@ import json
 configuration = {
     # definition
     "use_cuda": True,
-    "audio_window": 20480, # 20480 # 15200
+    "audio_window": 32000, # 20480 # 15200
     "sampling_rate": 16000,
     "epoch": 500,
-    "batch_size": 36,
-    "learning_rate": 0.003,
+    "batch_size": 16,
+    "learning_rate": 0.00005,
 
     # dataset
     "dataset_type": "BaselineWaveformDatasetByBYOL",
@@ -25,22 +25,18 @@ configuration = {
     "pin_memory": False,
 
     # model
-    "pretext_model_name": "WaveBYOLEfficientB4",
+    "pretext_model_name": "WaveBYOLEfficientB4Mix",
     "pre_input_dims": 1,
     "pre_hidden_dims": 512,
     "pre_filter_sizes": [10, 8, 4, 4, 4],
     "pre_strides": [5, 4, 2, 2, 2],
     "pre_paddings": [2, 2, 2, 2, 1],
-    "dimension": 64, # 15200: 86016 # 20480: 114688
-    "hidden_size": 512, # 512 # 2048
+    "dimension": 16384, # 15200: 86016 # 20480: 114688
+    "hidden_size": 2048, # 512 # 2048
     "projection_size": 4096,
-    "ema_decay": 0.8,
+    "ema_decay": 0.9,
     # optimizer
-    "optimizer_name": "Adam",
-    "weight_decay": 1e-2,
-    "eps": 1e-08,
-    "amsgrad": False,
-    "betas": (0.9, 0.999),
+    "optimizer_name": "AdamP",
     # checkpoint
     "checkpoint_save_directory_path": "./checkpoint",
 }

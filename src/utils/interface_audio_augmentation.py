@@ -39,7 +39,7 @@ def audio_time_dropout(x, sr, max_seconds=0.1, audio_window=None):
 
 
 def audio_reverb(x, sr, reverb_size=100, audio_window=None):
-    random_room_size = lambda: np.random.randint(0, 100)
+    random_room_size = lambda: np.random.randint(50, 100)
     combination = augment.EffectChain().reverb(random_room_size, random_room_size, random_room_size).channels(1)
     y = combination.apply(x, src_info={'rate': sr}, target_info={'rate': sr})
     return y

@@ -69,9 +69,9 @@ if __name__ == '__main__':
         "audio_window": 20480,
         "batch_size": 1,
         # dataset
-        "dataset_type": "LibriSpeechFullWaveformDataset",
-        "train_dataset": "../../dataset/baseline-train-split.txt",
-        "test_dataset": "../../dataset/baseline-test-split.txt",
+        "dataset_type": "VoxCelebWaveformDataset",
+        "train_dataset": "../../dataset/voxceleb01-train.txt",
+        "test_dataset": "../../dataset/voxceleb01-train.txt",
         "num_workers": 16,
         "dataset_shuffle": True,
         "pin_memory": True,

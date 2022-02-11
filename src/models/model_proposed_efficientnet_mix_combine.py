@@ -10,6 +10,29 @@ from efficientnet_pytorch import EfficientNet
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 
+class PreNetwork(nn.Module):
+    def __init__(self, input_dim, hidden_dim, strides, filter_sizes, paddings):
+        super(PreNetwork, self).__init__()
+        assert(
+                len(strides) == len(filter_sizes) == len(paddings)
+        ), "Inconsistent length of strides, filter sizes and padding"
+
+        self.encoder = nn.Sequential()
+        for index, (stride, filter_size, padding) in enumerate(zip(strides, filter_sizes, paddings)):
+            self.encoder.add_module(
+                "encoder_layer_{}".format(index),
+                nn.Sequential(
+                    nn.Conv1d(in_channels=input_dim, out_channels=hidden_dim,
+                              kernel_size=filter_size, stride=stride, padding=padding),
+                    nn.LeakyReLU(),
+                )
+            )
+            input_dim = hidden_dim
+
+    def forward(self, x):
+        return self.encoder(x)
+
+
 class EncoderNetwork(nn.Module):
     def __init__(self, efficientnet_model_name='efficientnet-b4'):
         super(EncoderNetwork, self).__init__()
@@ -33,7 +56,7 @@ class WaveBYOLEfficient(nn.Module):
                  dimension, hidden_size, projection_size, efficientnet_model_name):
         super(WaveBYOLEfficient, self).__init__()
         self.config = config
-        self.online_pre_network = model_proposed02.PreNetwork(  # CPC encoder와 동일하게 매칭되는 부분
+        self.online_pre_network = PreNetwork(  # CPC encoder와 동일하게 매칭되는 부분 -> leakyrelu로 변경
             input_dim=pre_input_dims,
             hidden_dim=pre_hidden_dims,
             filter_sizes=pre_filter_sizes,
@@ -51,7 +74,7 @@ class WaveBYOLEfficient(nn.Module):
 
         # 아직도 이 loss에 대해서 좀 분분인데 일단은 그냥 쓰기로 햇음
         self.criterion = losses.byol_a_criterion
-        self.output_representation = nn.AdaptiveAvgPool3d((1, 16, 4))
+        self.output_representation = nn.AdaptiveAvgPool3d((1, 16, 1024))
 
     def setup_target_network(self):
         self.get_pre_network()
@@ -74,24 +97,19 @@ class WaveBYOLEfficient(nn.Module):
         output = self.online_pre_network(x)
         output = output.unsqueeze(1)
         online_representation = self.online_encoder_network(output)
-        online_representation_output = self.output_representation(online_representation)
-        online_representation_reshape = online_representation_output.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
-        return online_representation_reshape
+        online_representation_reshape = online_representation.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
+        online_representation_output = self.output_representation(online_representation_reshape)
+        return online_representation_output
 
     def get_projection(self, x):
-        output_line = self.online_pre_network(x)
-        output = output_line.unsqueeze(1)
-        online_representation = self.online_encoder_network(output)
-
-        online_representation_output = self.output_representation(online_representation)
-        online_representation_permute = online_representation_output.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
-        B1, T1, D1, C1 = online_representation_permute.shape
-        online_representation_reshape = online_representation_permute.reshape((B1, T1 * C1 * D1))
-        online_projection = self.online_projector_network(online_representation_reshape)
-        return online_projection, (output_line, online_representation_permute)
+        online_representation_output = self.get_representation(x)
+        B1, T1, D1, C1 = online_representation_output.shape
+        online_representation_reshape = online_representation_output.reshape((B1, T1 * C1 * D1))
+        return online_representation_reshape, 0
 
 
     def forward(self, x01, x02):
+        print(x01.size())
         # 먼저 target network 파라미터부터 따와서 생성
         if self.target_pre_network is None \
                 or self.target_encoder_network is None or self.target_projector_network is None:
@@ -103,25 +121,32 @@ class WaveBYOLEfficient(nn.Module):
         # input: (batch, frequency, timestep)
         # output: (batch, frequency, timestep)
         online_x01_pre = self.online_pre_network(x01)
+        print(online_x01_pre.size())
         online_x02_pre = self.online_pre_network(x02)
         # shape: (batch, channel, frequency, timestep)
         online_x01 = online_x01_pre.unsqueeze(1)
+        print(online_x01.size())
         online_x02 = online_x02_pre.unsqueeze(1)
         # input: (batch, channel, frequency, timestep)
         # output: (batch, channel, frequency, timestep) -> 여기서 channel 이 빵빵해지고 나머지가 줄어들 것
         online_representation01 = self.online_encoder_network(online_x01)
+        print(online_representation01.size())
         online_representation02 = self.online_encoder_network(online_x02)
-        online_representation01_output = self.output_representation(online_representation01)
-        online_representation02_output = self.output_representation(online_representation02)
-        # shape 변경: (batch, time, frequency (mel), channel)
-        online_representation01_reshape = online_representation01_output.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
-        online_representation02_reshape = online_representation02_output.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
-        # print("online output : ", online_representation01_reshape.size())
-        B1, T1, D1, C1 = online_representation01_reshape.shape
-        B2, T2, D2, C2 = online_representation02_reshape.shape
+
+        online_representation01_reshape = online_representation01.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
+        print(online_representation01_reshape.size())
+        online_representation02_reshape = online_representation02.permute(0, 3, 2, 1)  # (batch, time, mel, ch)
+
+        online_representation01_output = self.output_representation(online_representation01_reshape)
+        print(online_representation01_output.size())
+        online_representation02_output = self.output_representation(online_representation02_reshape)
+
+        B1, T1, D1, C1 = online_representation01_output.shape
+        B2, T2, D2, C2 = online_representation02_output.shape
         # shape 변경 (batch, time, frequency * channel)
-        online_representation01_reshape = online_representation01_reshape.reshape((B1, T1 * C1 * D1))
-        online_representation02_reshape = online_representation02_reshape.reshape((B2, T2 * C2 * D2))
+        online_representation01_reshape = online_representation01_output.reshape((B1, T1 * C1 * D1))
+        print(online_representation01_reshape.size())
+        online_representation02_reshape = online_representation02_output.reshape((B2, T2 * C2 * D2))
 
         # ** projection과 prediction들어가기 전에 한번더 변환해주어야 함 (아니면 투딤으로 그냥 가버려?)
         # print(online_representation02_reshape.size())
@@ -196,18 +221,17 @@ if __name__ == '__main__':
             pre_filter_sizes=[10, 8, 4, 4, 4],
             pre_strides=[5, 4, 2, 2, 2],
             pre_paddings=[2, 2, 2, 2, 1],
-            dimension=245760,  # b4,15200 -> 86016
-            hidden_size=256,
+            dimension=16384,  # b4,15200 -> 86016
+            hidden_size=2048,
             projection_size=4096,
             efficientnet_model_name='efficientnet-b0'
         ).cuda()
         print(test_model)
-        input_data01 = torch.rand(8, 1, 64000).cuda()
-        input_data02 = torch.rand(8, 1, 64000).cuda()
+        input_data01 = torch.rand(2, 1, 20480).cuda()
+        input_data02 = torch.rand(2, 1, 20480).cuda()
         online_representation_output, target_representation_output, loss = test_model(input_data01, input_data02)
         print(online_representation_output[0][0].size())
         print(online_representation_output[1][0].size())
-
     elif model_type == 'b4':
         test_model = WaveBYOLEfficient(
             config=None,
@@ -216,15 +240,15 @@ if __name__ == '__main__':
             pre_filter_sizes=[10, 8, 4, 4, 4],
             pre_strides=[5, 4, 2, 2, 2],
             pre_paddings=[2, 2, 2, 2, 1],
-            dimension=64,  # b4,15200 -> 86016
-            hidden_size=256,
+            dimension=16384,  # b4,15200 -> 86016
+            hidden_size=2048,
             projection_size=4096,
             efficientnet_model_name='efficientnet-b4'
         ).cuda()
         # print(test_model)
-        input_data01 = torch.rand(2, 1, 20480).cuda()
-        input_data02 = torch.rand(2, 1, 20480).cuda()
-        online_representation_output, target_representation_output, loss = test_model(input_data01, input_data02)
+        input_data01 = torch.rand(2, 1, 64000).cuda()
+        input_data02 = torch.rand(2, 1, 15200).cuda()
+        # online_representation_output, target_representation_output, loss = test_model(input_data01, input_data02)
         # print(online_representation_output[0][0].size())
         # print(online_representation_output[1][0].size())
 
@@ -232,3 +256,7 @@ if __name__ == '__main__':
         # print(rep.size())
         # print(vec[0].size())
         # print(vec[1].size())
+
+
+        rep, _ = test_model.get_projection(input_data01)
+        print(rep.size())

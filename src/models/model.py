@@ -8,6 +8,8 @@ import src.models.model_proposed05 as model_proposed05
 import src.models.model_proposed06 as model_proposed06
 import src.models.model_proposed07 as model_proposed07
 import src.models.model_proposed_efficientnet_combine as model_proposed_efficientnet_combine
+import src.models.model_proposed_efficientnet_mix_combine as model_proposed_efficientnet_mix_combine
+import src.models.model_proposed_original as model_proposed_original
 import src.models.model_byol_audio as byol_audio
 import torch
 
@@ -57,8 +59,47 @@ def load_model(config, model_name, checkpoint_path=None):
             strides=config['strides'],
             paddings=config['paddings'],
         )
+    elif model_name == 'WaveBYOLEfficientB0':
+        model = model_proposed_efficientnet_combine.WaveBYOLEfficient(
+            config=config,
+            pre_input_dims=config['pre_input_dims'],
+            pre_hidden_dims=config['pre_hidden_dims'],
+            pre_strides=config['pre_strides'],
+            pre_filter_sizes=config['pre_filter_sizes'],
+            pre_paddings=config['pre_paddings'],
+            dimension=config['dimension'],
+            hidden_size=config['hidden_size'],
+            projection_size=config['projection_size'],
+            efficientnet_model_name='efficientnet-b0',
+        )
+    elif model_name == 'WaveBYOLEfficientB0Mix':
+        model = model_proposed_efficientnet_mix_combine.WaveBYOLEfficient(
+            config=config,
+            pre_input_dims=config['pre_input_dims'],
+            pre_hidden_dims=config['pre_hidden_dims'],
+            pre_strides=config['pre_strides'],
+            pre_filter_sizes=config['pre_filter_sizes'],
+            pre_paddings=config['pre_paddings'],
+            dimension=config['dimension'],
+            hidden_size=config['hidden_size'],
+            projection_size=config['projection_size'],
+            efficientnet_model_name='efficientnet-b0',
+        )
     elif model_name == 'WaveBYOLEfficientB4':
         model = model_proposed_efficientnet_combine.WaveBYOLEfficient(
+            config=config,
+            pre_input_dims=config['pre_input_dims'],
+            pre_hidden_dims=config['pre_hidden_dims'],
+            pre_strides=config['pre_strides'],
+            pre_filter_sizes=config['pre_filter_sizes'],
+            pre_paddings=config['pre_paddings'],
+            dimension=config['dimension'],
+            hidden_size=config['hidden_size'],
+            projection_size=config['projection_size'],
+            efficientnet_model_name='efficientnet-b4',
+        )
+    elif model_name == 'WaveBYOLEfficientB4Mix':
+        model = model_proposed_efficientnet_mix_combine.WaveBYOLEfficient(
             config=config,
             pre_input_dims=config['pre_input_dims'],
             pre_hidden_dims=config['pre_hidden_dims'],
@@ -152,6 +193,19 @@ def load_model(config, model_name, checkpoint_path=None):
         )
         model.setup_target_network()
         model.setup_modest_network()
+    elif model_name == 'waveBYOLOriginal':
+        model = model_proposed_original.WaveBYOL(
+            config=config,
+            pre_input_dims=config['pre_input_dims'],
+            pre_hidden_dims=config['pre_hidden_dims'],
+            pre_strides=config['pre_strides'],
+            pre_filter_sizes=config['pre_filter_sizes'],
+            pre_paddings=config['pre_paddings'],
+            dimension=config['dimension'],
+            hidden_size=config['hidden_size'],
+            projection_size=config['projection_size'],
+        )
+
 
     if checkpoint_path is not None:
         device = torch.device('cpu')

@@ -11,13 +11,14 @@ import src.optimizers.optimizer as optimizers
 import src.utils.interface_audio_augmentation as audio_augmentation
 import src.optimizers.ExponentialMovingAverage as ema
 import src.losses.criterion_metrics as metrics
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
 
 def main():
     # Configuration 불러오기
     parser = argparse.ArgumentParser(description='waverdeep - waveBYOL proposed')
     parser.add_argument('--configuration', required=False,
-                        default='./config/config-pretext-WaveBYOLEfficientB4-FSD50K-15200.json')
+                        default='./config/config-pretext-WaveBYOLEfficientB4Mix-FSD50K-32000-2048.json')
     args = parser.parse_args()
     now = train_tool.setup_timestamp()
 
@@ -112,21 +113,21 @@ def train(config, writer, epoch, model, train_loader, optimizer):
             tensorboard.add_byol_latent_heatmap(writer, online02_output, target01_output, "TrainLatentPreVector",
                                                 "online02_vs_target01", (epoch - 1) * len(train_loader) + batch_idx)
 
-            online01_output_rep = online_representation[1][0].detach()
-            online02_output_rep = online_representation[1][1].detach()
-            target01_output_rep = target_representation[1][0].detach()
-            target02_output_rep = target_representation[1][1].detach()
-            online01_output_rep = online01_output_rep[0].squeeze().cpu().numpy()
-            online02_output_rep = online02_output_rep[0].squeeze().cpu().numpy()
-            target01_output_rep = target01_output_rep[0].squeeze().cpu().numpy()
-            target02_output_rep = target02_output_rep[0].squeeze().cpu().numpy()
-
-            tensorboard.add_byol_latent_heatmap(writer, online01_output_rep, target02_output_rep,
-                                                "TrainLatentEncoderVector",
-                                                "online01_vs_target02", (epoch - 1) * len(train_loader) + batch_idx)
-            tensorboard.add_byol_latent_heatmap(writer, online02_output_rep, target01_output_rep,
-                                                "TrainLatentEncoderVector",
-                                                "online02_vs_target01", (epoch - 1) * len(train_loader) + batch_idx)
+            # online01_output_rep = online_representation[1][0].detach()
+            # online02_output_rep = online_representation[1][1].detach()
+            # target01_output_rep = target_representation[1][0].detach()
+            # target02_output_rep = target_representation[1][1].detach()
+            # online01_output_rep = online01_output_rep[0].squeeze().cpu().numpy()
+            # online02_output_rep = online02_output_rep[0].squeeze().cpu().numpy()
+            # target01_output_rep = target01_output_rep[0].squeeze().cpu().numpy()
+            # target02_output_rep = target02_output_rep[0].squeeze().cpu().numpy()
+            #
+            # tensorboard.add_byol_latent_heatmap(writer, online01_output_rep, target02_output_rep,
+            #                                     "TrainLatentEncoderVector",
+            #                                     "online01_vs_target02", (epoch - 1) * len(train_loader) + batch_idx)
+            # tensorboard.add_byol_latent_heatmap(writer, online02_output_rep, target01_output_rep,
+            #                                     "TrainLatentEncoderVector",
+            #                                     "online02_vs_target01", (epoch - 1) * len(train_loader) + batch_idx)
 
     total_loss /= len(train_loader.dataset)  # average loss
 
@@ -182,21 +183,21 @@ def test(config, writer, epoch, model, test_loader):
                 tensorboard.add_byol_latent_heatmap(writer, online02_output, target01_output, "TestLatentPreVector",
                                                     "online02_vs_target01", (epoch - 1) * len(test_loader) + batch_idx)
 
-                online01_output_rep = online_representation[1][0].detach()
-                online02_output_rep = online_representation[1][1].detach()
-                target01_output_rep = target_representation[1][0].detach()
-                target02_output_rep = target_representation[1][1].detach()
-                online01_output_rep = online01_output_rep[0].squeeze().cpu().numpy()
-                online02_output_rep = online02_output_rep[0].squeeze().cpu().numpy()
-                target01_output_rep = target01_output_rep[0].squeeze().cpu().numpy()
-                target02_output_rep = target02_output_rep[0].squeeze().cpu().numpy()
-
-                tensorboard.add_byol_latent_heatmap(writer, online01_output_rep, target02_output_rep,
-                                                    "TestLatentEncoderVector",
-                                                    "online01_vs_target02", (epoch - 1) * len(test_loader) + batch_idx)
-                tensorboard.add_byol_latent_heatmap(writer, online02_output_rep, target01_output_rep,
-                                                    "TestLatentEncoderVector",
-                                                    "online02_vs_target01", (epoch - 1) * len(test_loader) + batch_idx)
+                # online01_output_rep = online_representation[1][0].detach()
+                # online02_output_rep = online_representation[1][1].detach()
+                # target01_output_rep = target_representation[1][0].detach()
+                # target02_output_rep = target_representation[1][1].detach()
+                # online01_output_rep = online01_output_rep[0].squeeze().cpu().numpy()
+                # online02_output_rep = online02_output_rep[0].squeeze().cpu().numpy()
+                # target01_output_rep = target01_output_rep[0].squeeze().cpu().numpy()
+                # target02_output_rep = target02_output_rep[0].squeeze().cpu().numpy()
+                #
+                # tensorboard.add_byol_latent_heatmap(writer, online01_output_rep, target02_output_rep,
+                #                                     "TestLatentEncoderVector",
+                #                                     "online01_vs_target02", (epoch - 1) * len(test_loader) + batch_idx)
+                # tensorboard.add_byol_latent_heatmap(writer, online02_output_rep, target01_output_rep,
+                #                                     "TestLatentEncoderVector",
+                #                                     "online02_vs_target01", (epoch - 1) * len(test_loader) + batch_idx)
 
         total_loss /= len(test_loader.dataset)  # average loss
         writer.add_scalar('Loss/test', total_loss, (epoch - 1))

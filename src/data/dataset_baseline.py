@@ -33,7 +33,8 @@ def load_data_pipeline(audio_file, required_sample_rate, audio_window, full_audi
     if not full_audio:
         waveform = audio_io.random_cutoff(waveform, audio_window)
     if augmentation:
-        waveform = audio_augmentation.audio_augmentation_baseline(waveform, sample_rate, audio_window, custom_augmentation_list=custom_augmentation_list)
+        waveform = audio_augmentation.audio_augmentation_baseline(waveform, sample_rate, audio_window,
+                                                                  custom_augmentation_list=custom_augmentation_list)
     if not full_audio:
         waveform = audio_io.audio_adjust_length(waveform, audio_window)
     return waveform
@@ -50,7 +51,7 @@ def load_data_pipeline_by_byol(audio_file, required_sample_rate, audio_window, f
             sample_rate == required_sample_rate
     ), "sampling rate is not consistent throughout the dataset"
 
-    augmentation_list = [0, 2, 3, 5, 6]
+    augmentation_list = [0, 2, 3, 4, 5, 6]
     # audio 길이 맞추기
     waveform = audio_io.audio_adjust_length(waveform, audio_window)
     pick_index = np.random.randint(waveform.shape[1] - audio_window + 1)

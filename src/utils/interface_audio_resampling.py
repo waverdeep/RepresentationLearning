@@ -35,6 +35,7 @@ def aaa():
     directory_path = '../../dataset/FSD50K.dev_audio'
     file_extension = "wav"
     divide_num = multiprocessing.cpu_count() - 1
+    print(divide_num)
     file_list = io.get_all_file_path(directory_path, file_extension)
     file_list = io.list_divider(divide_num, file_list)
     print(len(file_list))
@@ -45,5 +46,9 @@ def aaa():
 
 if __name__ == '__main__':
     aaa()
+    # resampling_audio()
     # directory_path = ['../../dataset/FSD50K.dev_audio']
     # get_audio_list(directory_path, '../../dataset/FSD50K.dev_audio_16k/', audio_window=20480, file_extension="wav")
+
+    # directory_path = ['../../dataset/UrbanSound8K/audio']
+    # get_audio_list(directory_path, '../../dataset/UrbanSound8K/audio_16k/', audio_window=20480, file_extension="wav")
