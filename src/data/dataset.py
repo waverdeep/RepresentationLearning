@@ -5,6 +5,7 @@ import src.data.dataset_byol_audio as dataset_byol_audio
 import src.data.dataset_voxceleb as dataset_voxceleb
 import src.data.dataset_baseline as dataset_baseline
 import src.data.dataset_urbansound8k as dataset_urbansound8k
+import src.data.dataset_byol_light as dataset_byol_light
 torchaudio.set_audio_backend("sox_io")
 
 
@@ -31,6 +32,25 @@ def get_dataloader(config, mode='train'):
         )
 
         return dataloader, dataset
+
+    if dataset_type == 'WaveBYOLDataset':
+        waveform_dataset = dataset_byol_light.WaveformDatasetByWaveBYOL(
+            file_path=config['{}_dataset'.format(mode)],
+            audio_window=config['audio_window'],
+            sampling_rate=config['sampling_rate'],
+            augmentation=config['{}_augmentation'.format(mode)]
+        )
+
+        dataloader = data.DataLoader(
+            dataset=waveform_dataset,
+            batch_size=config['batch_size'],
+            shuffle=config['dataset_shuffle'],
+            num_workers=config['num_workers'],
+            pin_memory=config['pin_memory'],
+        )
+
+        return dataloader, waveform_dataset
+
 
     if dataset_type == 'BaselineWaveformDataset':
         waveform_dataset = dataset_baseline.BaselineWaveformDataset
