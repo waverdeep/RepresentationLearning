@@ -62,7 +62,7 @@ def audio_speed(x, sr, audio_window=None, rate=None):
     if rate is not None:
         effects = [['speed', str(rate)]]
     else:
-        random_rate = [0.9, 0.8, 0.7]
+        random_rate = [0.95, 0.93, 0.9, 0.85, 0.83, 0.8, 0.75]
         picked = random.sample(random_rate, 1)[0]
         effects = [['speed', str(picked)]]
     waveform, sample_rate = torchaudio.sox_effects.apply_effects_tensor(x, sr, effects)

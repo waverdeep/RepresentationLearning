@@ -32,6 +32,21 @@ def add_dataset_figure(writer, dataloader, desc="Train", epoch=0):
     writer.add_figure('Visualize{}'.format(desc), fig, epoch)
     plt.close()
 
+
+def visualization_dataset_by_byol(writer, dataloader, desc="Train", epoch=0):
+    dataiter = iter(dataloader)
+    waveform01, waveform02 = dataiter.next()
+    fig = plt.figure()
+    plt.plot(waveform01[0].t().numpy(), alpha=0.5)
+    plt.plot(waveform02[0].t().numpy(), alpha=0.5)
+    plt.title("sample waveform visualization")
+    writer.add_figure('Visualize{}'.format(desc), fig, epoch)
+    plt.close()
+    writer.add_audio('Visualize{}'.format(desc), waveform01[0], epoch, sample_rate=16000)
+
+
+
+
 def add_dataset_figure_by_byol(writer, dataloader, desc="Train", epoch=0):
     dataiter = iter(dataloader)
     waveform01, waveform02 = dataiter.next()
@@ -51,12 +66,16 @@ def add_latent_heatmap(writer, data, title, desc, epoch):
     plt.close()
 
 
-def add_byol_latent_heatmap(writer, online, target, title, desc, epoch):
+def add_byol_latent_heatmap(writer, online1, online2, target1, target2, title, desc, epoch):
     fig = plt.figure(figsize=(12, 12))
-    ax1 = fig.add_subplot(1, 2, 1)
-    ax1.matshow(online)
-    ax2 = fig.add_subplot(1, 2, 2)
-    ax2.matshow(target)
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax1.matshow(online1)
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax2.matshow(online2)
+    ax3 = fig.add_subplot(2, 2, 3)
+    ax3.matshow(target2)
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax4.matshow(target1)
     writer.add_figure('{}/{}'.format(title, desc), fig, epoch)
     plt.close()
 

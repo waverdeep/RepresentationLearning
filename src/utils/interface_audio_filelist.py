@@ -30,7 +30,7 @@ def get_baseline_audio_list(directory_path, original_filepath, new_filepath):
 
 
 if __name__ == '__main__':
-    name = "vox01"
+    name = "FSD50K.eval_audio"
     if name == "custom_dataset":
         train_directory_path = ['../../dataset/LibriSpeech/train-clean-100', '../../dataset/LibriSpeech/train-clean-360',
                                 '../../dataset/LibriSpeech/train-other-500']
@@ -70,5 +70,9 @@ if __name__ == '__main__':
                        file_extension="wav")
     elif name == 'FSD50K.dev_audio':
         train_directory_path = ['../../dataset/FSD50K.dev_audio_16k']
-        get_audio_list(train_directory_path, '../../dataset/FSD50K.txt', audio_window=20480,
+        get_audio_list(train_directory_path, '../../dataset/FSD50K.dev_audio_16k.txt', audio_window=20480,
+                       file_extension="wav")
+    elif name == 'FSD50K.eval_audio':
+        train_directory_path = ['../../dataset/FSD50K.eval_audio_16k']
+        get_audio_list(train_directory_path, '../../dataset/FSD50K.eval_audio_16k.txt', audio_window=20480,
                        file_extension="wav")

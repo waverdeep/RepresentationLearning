@@ -32,7 +32,7 @@ def resampling_audio(file_list):
 
 
 def aaa():
-    directory_path = '../../dataset/FSD50K.dev_audio'
+    directory_path = '../../dataset/FSD50K.eval_audio'
     file_extension = "wav"
     divide_num = multiprocessing.cpu_count() - 1
     print(divide_num)
