@@ -13,7 +13,7 @@ def get_audio_file_with_speaker_info(file_list, index):
 
 class VoxCelebWaveformDataset(dataset_baseline.BaselineWaveformDataset):
     def __init__(self, file_path, audio_window=20480, sample_rate=16000, full_audio=False,
-                 augmentation=False, speaker_filelist="./dataset/voxceleb01-label.txt"):
+                 augmentation=False, speaker_filelist="./dataset/voxceleb01-SI-label.txt"):
         super().__init__(file_path=file_path, audio_window=audio_window, sample_rate=sample_rate,
                          full_audio=full_audio, augmentation=augmentation)
         self.speaker_list = natsort.natsorted(file_io.read_txt2list(speaker_filelist))
