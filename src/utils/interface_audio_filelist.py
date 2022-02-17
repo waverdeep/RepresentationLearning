@@ -30,7 +30,7 @@ def get_baseline_audio_list(directory_path, original_filepath, new_filepath):
 
 
 if __name__ == '__main__':
-    name = "FSD50K.eval_audio"
+    name = "speech_command"
     if name == "custom_dataset":
         train_directory_path = ['../../dataset/LibriSpeech/train-clean-100', '../../dataset/LibriSpeech/train-clean-360',
                                 '../../dataset/LibriSpeech/train-other-500']
@@ -59,8 +59,8 @@ if __name__ == '__main__':
         train_directory_path = ['../../dataset/LibriSpeech/train-clean-360']
         get_audio_list(train_directory_path, '../../dataset/librispeech360-20480.txt', audio_window=20480)
     elif name == 'vox01':
-        train_directory_path = ['../../dataset/voxceleb/wav']
-        get_audio_list(train_directory_path, '../../dataset/voxceleb01-20480.txt', audio_window=20480, file_extension="wav")
+        train_directory_path = ['../../dataset/voxceleb/test_wav']
+        get_audio_list(train_directory_path, '../../dataset/voxceleb01-test.txt', audio_window=20480, file_extension="wav")
     elif name == 'competition':
         train_directory_path = ['../../dataset/speaker_recognition/train']
         get_audio_list(train_directory_path, '../../dataset/speaker_recognition-train-20480.txt', audio_window=20480,
@@ -76,3 +76,7 @@ if __name__ == '__main__':
         train_directory_path = ['../../dataset/FSD50K.eval_audio_16k']
         get_audio_list(train_directory_path, '../../dataset/FSD50K.eval_audio_16k.txt', audio_window=20480,
                        file_extension="wav")
+
+    elif name == 'speech_command':
+        train_directory_path = ['../../dataset/SpeechCommands']
+        get_audio_list(train_directory_path, '../../dataset/speech_command.txt', audio_window=20480, file_extension='wav')

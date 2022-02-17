@@ -1,7 +1,7 @@
 import interface_file_io as file_io
 
 if __name__ == '__main__':
-    filelist = "../../dataset/voxceleb01-20480.txt"
+    filelist = "../../dataset/voxceleb01.txt"
     dataset = file_io.read_txt2list(filelist)
     label = []
     for data in dataset:

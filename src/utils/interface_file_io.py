@@ -63,7 +63,7 @@ def list_divider(step, data):
 
 
 if __name__ == '__main__':
-    name = "concat"
+    name = "vox"
     if name == "concat":
         train = list()
         temp01 = read_txt2list("../../dataset/FSD50K-train.txt")
@@ -112,4 +112,11 @@ if __name__ == '__main__':
         datalist = get_all_file_path("../../dataset/musan", 'wav')
         make_list2txt(datalist, "../../dataset/musan-total.txt")
 
+    if name == 'vox':
+        test = list()
+        temp01 = read_txt2list("../../dataset/voxceleb01-train.txt")
+        temp02 = read_txt2list("../../dataset/voxceleb01-test.txt")
+        test.extend(temp01)
+        test.extend(temp02)
+        make_list2txt(test, "../../dataset/voxceleb01.txt")
 

@@ -4,7 +4,7 @@ import interface_file_io as file_io
 
 def make_train_test_file(data_path, train_file_path, test_file_path):
     file_list = file_io.read_txt2list(data_path)
-    x_train, x_test = train_test_split(file_list, test_size=0.2, random_state=777)
+    x_train, x_test = train_test_split(file_list, test_size=0.1, random_state=777)
     file_io.make_list2txt(x_train, train_file_path)
     file_io.make_list2txt(x_test, test_file_path)
 
@@ -62,6 +62,6 @@ if __name__ == '__main__':
                              '../../dataset/musan-test.txt')
 
     elif task == 'voxceleb':
-        make_train_test_file('../../dataset/voxceleb01-20480.txt',
-                             '../../dataset/voxceleb01-train.txt',
-                             '../../dataset/voxceleb01-test.txt')
+        make_train_test_file('../../dataset/voxceleb01.txt',
+                             '../../dataset/voxceleb01-SI-train.txt',
+                             '../../dataset/voxceleb01-SI-test.txt')
