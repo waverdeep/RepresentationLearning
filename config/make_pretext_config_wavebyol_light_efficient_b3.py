@@ -29,7 +29,7 @@ configuration = {
     "encoder_filter_size": [10, 8, 4, 4],
     "encoder_stride": [5, 4, 2, 2],
     "encoder_padding": [2, 2, 2, 1],
-    "efficientnet_version": "b3",
+    "efficientnet_version": "nob3",
     "mlp_input_dim": 1536,
     "mlp_hidden_dim": 4096,
     "mlp_output_dim": 4096,
